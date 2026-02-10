@@ -203,7 +203,7 @@ class ClinicalTrialsProspector:
         if nct_id:
             company['nct_ids'].add(nct_id)
     
-    def export_to_csv(self, filename: str = None):
+    def export_to_csv(self, filename: str = None, target_role: str = None):
         """Export companies to CSV for PhantomBuster"""
         if not self.companies_data:
             print("❌ No data to export")
@@ -223,30 +223,65 @@ class ClinicalTrialsProspector:
         with open(filename, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f, delimiter=";")
             
-            # Header
-            writer.writerow([
-                'Company Name',
-                'Role',
-                'Lead Sponsor Mentions',
-                'Collaborator Mentions',
-                'Total Mentions',
-                'LinkedIn Company Search URL'
-            ])
+            if target_role:
+                writer.writerow([
+                    'Company Name',
+                    'Role (ClinicalTrials)',
+                    'Target Role (LinkedIn)',
+                    'Lead Sponsor Mentions',
+                    'Collaborator Mentions',
+                    'Total Mentions',
+                    'LinkedIn People Search URL'
+                ])
+            else: 
+                writer.writerow([
+                    'Company Name',
+                    'Role (ClinicalTrials)',
+                    'Lead Sponsor Mentions',
+                    'Collaborator Mentions',
+                    'Total Mentions',
+                    'LinkedIn Company Search URL'
+                ])
             
             # Data rows
             for company in sorted_companies:
-                role = self._get_role_label(company)
-                linkedin_url = f"https://www.linkedin.com/search/results/companies/?keywords={requests.utils.quote(company['name'])}"
-                
-                writer.writerow([
-                    company['name'],
-                    role,
-                    company['lead_count'],
-                    company['collab_count'],
-                    company['trial_count'],
-                    linkedin_url
-                ])
-        
+                role_label = self._get_role_label(company)
+                company_name = company['name']
+
+                if target_role:
+                    # People search: keyword = "{role} {company}"
+                    # (this is the most reliable without Sales Navigator/company-id filters)
+                    keywords = f'{target_role} "{company_name}"'
+                    linkedin_url = (
+                        "https://www.linkedin.com/search/results/people/"
+                        f"?keywords={requests.utils.quote(keywords)}"
+                    )
+
+                    writer.writerow([
+                        company_name,
+                        role_label,
+                        target_role,
+                        company['lead_count'],
+                        company['collab_count'],
+                        company['trial_count'],
+                        linkedin_url
+                    ])
+                else:
+                    # Company search (your current behavior)
+                    linkedin_url = (
+                        "https://www.linkedin.com/search/results/companies/"
+                        f"?keywords={requests.utils.quote(company_name)}"
+                    )
+
+                    writer.writerow([
+                        company_name,
+                        role_label,
+                        company['lead_count'],
+                        company['collab_count'],
+                        company['trial_count'],
+                        linkedin_url
+                    ])
+
         print("✅ Exported to {}".format(filename))
         return filename
     
