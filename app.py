@@ -48,7 +48,7 @@ def search():
         
         # Handle "ALL" option
         if max_results_raw == 'ALL':
-            max_results = 10000  # Reasonable upper limit
+            max_results = 100000  # Reasonable upper limit
         else:
             max_results = int(max_results_raw)
         

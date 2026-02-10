@@ -122,7 +122,6 @@ class ClinicalTrialsProspector:
                 if not page_token:
                     break
                 
-                # Be polite to the API
                 time.sleep(0.2)
                 
             except requests.exceptions.RequestException as e:
@@ -222,7 +221,7 @@ class ClinicalTrialsProspector:
         )
         
         with open(filename, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
+            writer = csv.writer(f, delimiter=";")
             
             # Header
             writer.writerow([
