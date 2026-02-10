@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Flask web server for Clinical Trials Prospector
-Simple interface that serves HTML and processes requests
+Production-ready version for Render.com deployment
 """
 
 from flask import Flask, render_template, request, jsonify, send_file
@@ -10,7 +10,6 @@ import os
 import sys
 
 # Import your ClinicalTrialsProspector class
-# Make sure the file is named clinical_trials_prospector.py
 try:
     from clinical_trials_prospector import ClinicalTrialsProspector
 except ImportError:
@@ -156,20 +155,40 @@ def export_detailed():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint for monitoring"""
+    return jsonify({'status': 'healthy', 'service': 'clinical-trials-prospector'}), 200
+
+
 if __name__ == '__main__':
     # Create templates directory if it doesn't exist
     os.makedirs('templates', exist_ok=True)
     
+    # Get port from environment variable (Render sets this)
+    # Default to 5000 for local development
+    port = int(os.environ.get('PORT', 5000))
+    
+    # Determine if running in production
+    is_production = os.environ.get('RENDER') is not None
+    
     print("\n" + "="*60)
     print("🚀 Clinical Trials Prospector - Flask Server")
     print("="*60)
-    print("📱 Open your browser at: http://localhost:5000")
-    print("📁 Make sure index.html is in the 'templates' folder")
+    if is_production:
+        print("🌐 Running in PRODUCTION mode (Render)")
+        print(f"📱 Port: {port}")
+    else:
+        print("💻 Running in DEVELOPMENT mode (Local)")
+        print(f"📱 Open your browser at: http://localhost:{port}")
+        print("📁 Make sure index.html is in the 'templates' folder")
     print("🛑 Press Ctrl+C to stop")
     print("="*60 + "\n")
     
-    # Get port from environment variable (Render sets this)
-    port = int(os.environ.get('PORT', 5000))
-    
-    # Must use 0.0.0.0 and environment PORT
-    app.run(debug=False, host='0.0.0.0', port=port)
+    # CRITICAL: Must bind to 0.0.0.0 and use PORT from environment
+    # This is required for Render and other cloud platforms
+    app.run(
+        debug=not is_production,  # Debug OFF in production
+        host='0.0.0.0',           # Must be 0.0.0.0 for cloud deployment
+        port=port                 # Must use environment PORT variable
+    )
