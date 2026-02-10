@@ -168,4 +168,8 @@ if __name__ == '__main__':
     print("🛑 Press Ctrl+C to stop")
     print("="*60 + "\n")
     
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Get port from environment variable (Render sets this)
+    port = int(os.environ.get('PORT', 5000))
+    
+    # Must use 0.0.0.0 and environment PORT
+    app.run(debug=False, host='0.0.0.0', port=port)
