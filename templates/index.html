@@ -188,10 +188,21 @@
         <div class="companies-list" id="companiesList"></div>
       </div>
 
-      <div class="export-buttons">
-        <button class="btn btn-secondary" onclick="exportToCSV()">📄 Export to CSV (PhantomBuster)</button>
-        <button class="btn" onclick="exportDetailed()">📊 Export Detailed Data</button>
+      <div class="section" style="margin-top:15px;">
+        <h3>Export Options</h3>
+
+        <div class="form-group">
+          <label for="targetRole">Target role on LinkedIn (optional)</label>
+          <input id="targetRole" type="text" placeholder="e.g. CTO, Head of Clinical Operations, Medical Director" />
+          <div class="hint">If filled, the CSV will contain LinkedIn people search URLs for this role in each company.</div>
+        </div>
+
+        <div class="export-buttons">
+          <button class="btn btn-secondary" onclick="exportToCSV()">📄 Export to CSV (PhantomBuster)</button>
+          <button class="btn" onclick="exportDetailed()">📊 Export Detailed Data</button>
+        </div>
       </div>
+
     </div>
 
     <div class="info">
