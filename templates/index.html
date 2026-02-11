@@ -157,64 +157,7 @@
 <body>
   <div class="container">
     <h1>Clinical Trials Prospector</h1>
-    <p class="subtitle">Search for sponsors and collaborators from ClinicalTrials.gov</p>
-    <div class="info-badge">✓ Flexible organization type filtering</div>
-
-    <div class="section">
-      <h3>Search Parameters</h3>
-
-      <div class="form-group">
-        <label for="keywords">Keywords *</label>
-        <textarea id="keywords" placeholder="Enter keywords separated by commas (e.g., diabetes, CAR-T therapy, cardiovascular)"></textarea>
-        <div class="hint">Tip: Use commas to add multiple keywords. Example: <b>mRNA, vaccine</b></div>
-      </div>
-
-      <div class="filters">
-        <div class="form-group">
-          <label>Study Status</label>
-          <label style="margin-bottom:10px;">
-            <input type="checkbox" id="statusSelectAll" />
-            <span>Select all</span>
-          </label>
-          <div class="checkbox-group" id="status-group">
-            <label><input type="checkbox" value="RECRUITING"> Recruiting</label>
-            <label><input type="checkbox" value="ACTIVE_NOT_RECRUITING"> Active, not recruiting</label>
-            <label><input type="checkbox" value="COMPLETED"> Completed</label>
-            <label><input type="checkbox" value="ENROLLING_BY_INVITATION"> Enrolling by invitation</label>
-            <label><input type="checkbox" value="NOT_YET_RECRUITING"> Not yet recruiting</label>
-            <label><input type="checkbox" value="SUSPENDED"> Suspended</label>
-            <label><input type="checkbox" value="TERMINATED"> Terminated</label>
-            <label><input type="checkbox" value="WITHDRAWN"> Withdrawn</label>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>Study Phase</label>
-          <label style="margin-bottom:10px;">
-            <input type="checkbox" id="phaseSelectAll" />
-            <span>Select all</span>
-          </label>
-          <div class="checkbox-group" id="phase-group">
-            <label><input type="checkbox" value="EARLY_PHASE1"> Early Phase 1</label>
-            <label><input type="checkbox" value="PHASE1"> Phase 1</label>
-            <label><input type="checkbox" value="PHASE2"> Phase 2</label>
-            <label><input type="checkbox" value="PHASE3"> Phase 3</label>
-            <label><input type="checkbox" value="PHASE4"> Phase 4</label>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="maxResults">Max Results</label>
-          <select id="maxResults">
-            <option value="100">100 studies</option>
-            <option value="250">250 studies</option>
-            <option value="500" selected>500 studies</option>
-            <option value="1000">1000 studies</option>
-            <option value="ALL">All results</option>
-          </select>
-        </div>
-      </div>
-    </div>
+    <p class="subtitle">Searching tool connected to ClinicalTrials.gov</p>
 
     <!-- NEW: Organization Type Filtering -->
     <div class="section">
@@ -295,6 +238,157 @@
       </div>
     </div>
 
+    <div class="section">
+      <h3>Search Parameters</h3>
+
+      <div class="form-group">
+        <label for="keywords">Keywords *</label>
+        <textarea id="keywords" placeholder="Enter keywords separated by commas (e.g., diabetes, CAR-T therapy, cardiovascular)"></textarea>
+        <div class="hint">Tip: Use commas to add multiple keywords. Example: <b>mRNA, vaccine</b></div>
+      </div>
+
+      <div class="filters">
+        <div class="form-group">
+          <label>Study Status</label>
+          <label style="margin-bottom:10px;">
+            <input type="checkbox" id="statusSelectAll" />
+            <span>Select all</span>
+          </label>
+          <div class="checkbox-group" id="status-group">
+            <label><input type="checkbox" value="RECRUITING"> Recruiting</label>
+            <label><input type="checkbox" value="ACTIVE_NOT_RECRUITING"> Active, not recruiting</label>
+            <label><input type="checkbox" value="COMPLETED"> Completed</label>
+            <label><input type="checkbox" value="ENROLLING_BY_INVITATION"> Enrolling by invitation</label>
+            <label><input type="checkbox" value="NOT_YET_RECRUITING"> Not yet recruiting</label>
+            <label><input type="checkbox" value="SUSPENDED"> Suspended</label>
+            <label><input type="checkbox" value="TERMINATED"> Terminated</label>
+            <label><input type="checkbox" value="WITHDRAWN"> Withdrawn</label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Study Phase</label>
+          <label style="margin-bottom:10px;">
+            <input type="checkbox" id="phaseSelectAll" />
+            <span>Select all</span>
+          </label>
+          <div class="checkbox-group" id="phase-group">
+            <label><input type="checkbox" value="EARLY_PHASE1"> Early Phase 1</label>
+            <label><input type="checkbox" value="PHASE1"> Phase 1</label>
+            <label><input type="checkbox" value="PHASE2"> Phase 2</label>
+            <label><input type="checkbox" value="PHASE3"> Phase 3</label>
+            <label><input type="checkbox" value="PHASE4"> Phase 4</label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="maxResults">Max Results</label>
+          <select id="maxResults">
+            <option value="100">100 studies</option>
+            <option value="250">250 studies</option>
+            <option value="500" selected>500 studies</option>
+            <option value="1000">1000 studies</option>
+            <option value="ALL">All results</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- NEW: Data to Extract Section -->
+    <div class="section">
+      <h3>Data to Extract</h3>
+      <div class="hint" style="margin-bottom: 15px;">
+        Select which information you want to collect from each trial. More selections = larger export file.
+      </div>
+
+      <label style="margin-bottom:15px; display: flex; gap: 8px; align-items: center; cursor: pointer;">
+        <input type="checkbox" id="dataExtractSelectAll" />
+        <span style="font-weight: 600; color: #1f2937;">Select All Data Fields</span>
+      </label>
+
+      <div class="org-types-grid" id="dataExtractGrid">
+        <div class="org-type-card selected" data-extract="sponsors">
+          <label>
+            <input type="checkbox" value="sponsors" checked />
+            <span class="org-type-label">Sponsors & Collaborators</span>
+          </label>
+          <div class="org-type-count">Lead sponsor, collaborators</div>
+        </div>
+
+        <div class="org-type-card" data-extract="investigators">
+          <label>
+            <input type="checkbox" value="investigators" />
+            <span class="org-type-label">Principal Investigators</span>
+          </label>
+          <div class="org-type-count">Lead researchers, affiliations</div>
+        </div>
+
+        <div class="org-type-card" data-extract="locations">
+          <label>
+            <input type="checkbox" value="locations" />
+            <span class="org-type-label">Study Locations</span>
+          </label>
+          <div class="org-type-count">Facilities, cities, countries</div>
+        </div>
+
+        <div class="org-type-card" data-extract="interventions">
+          <label>
+            <input type="checkbox" value="interventions" />
+            <span class="org-type-label">Interventions</span>
+          </label>
+          <div class="org-type-count">Drugs, devices, procedures</div>
+        </div>
+
+        <div class="org-type-card" data-extract="conditions">
+          <label>
+            <input type="checkbox" value="conditions" />
+            <span class="org-type-label">Conditions</span>
+          </label>
+          <div class="org-type-count">Diseases being studied</div>
+        </div>
+
+        <div class="org-type-card" data-extract="outcomes">
+          <label>
+            <input type="checkbox" value="outcomes" />
+            <span class="org-type-label">Study Outcomes</span>
+          </label>
+          <div class="org-type-count">Primary, secondary measures</div>
+        </div>
+
+        <div class="org-type-card" data-extract="design">
+          <label>
+            <input type="checkbox" value="design" />
+            <span class="org-type-label">Study Design</span>
+          </label>
+          <div class="org-type-count">Phase, enrollment, randomization</div>
+        </div>
+
+        <div class="org-type-card" data-extract="eligibility">
+          <label>
+            <input type="checkbox" value="eligibility" />
+            <span class="org-type-label">Eligibility Criteria</span>
+          </label>
+          <div class="org-type-count">Age, gender, inclusion criteria</div>
+        </div>
+
+        <div class="org-type-card" data-extract="contacts">
+          <label>
+            <input type="checkbox" value="contacts" />
+            <span class="org-type-label">Contact Information</span>
+          </label>
+          <div class="org-type-count">Recruitment contacts, emails</div>
+        </div>
+
+        <div class="org-type-card" data-extract="timeline">
+          <label>
+            <input type="checkbox" value="timeline" />
+            <span class="org-type-label">Dates & Timeline</span>
+          </label>
+          <div class="org-type-count">Start, completion, update dates</div>
+        </div>
+      </div>
+    </div>
+
     <button class="btn" id="searchBtn" onclick="searchTrials()">Search Clinical Trials</button>
 
     <div id="loading" class="loading">
@@ -311,30 +405,77 @@
       </div>
 
       <div class="companies-section">
-        <h3>Organizations Found</h3>
+        <h3>Extracted Data (Preview)</h3>
         <div class="companies-list" id="companiesList"></div>
       </div>
 
       <div class="export-buttons">
-        <button class="btn btn-secondary" onclick="exportToCSV()">📄 Export to CSV (PhantomBuster)</button>
-        <button class="btn" onclick="exportDetailed()">📊 Export Detailed Data</button>
+        <button class="btn btn-secondary" onclick="exportToCSV()">📄 Export Complete Dataset to CSV</button>
       </div>
     </div>
 
     <div class="info">
       <h3>Features</h3>
       <ul>
-        <li><b>Flexible Filtering:</b> Choose which organization types to include in results</li>
-        <li><b>Select All:</b> Quickly include all organization types with one click</li>
-        <li><b>8 Organization Categories:</b> Companies, universities, hospitals, institutes, government, academic centers, foundations, non-profits</li>
-        <li><b>Easy Search:</b> Enter keywords related to your therapeutic area</li>
-        <li><b>Export Options:</b> CSV for PhantomBuster or detailed data for analysis</li>
+        <li><b>Flexible Data Extraction:</b> Choose exactly which data fields you need (10 categories available)</li>
+        <li><b>Organization Filtering:</b> Select which organization types to include in results</li>
+        <li><b>Select All Options:</b> Quickly include all types or all data fields with one click</li>
+        <li><b>10 Data Categories:</b> Sponsors, investigators, locations, interventions, conditions, outcomes, design, eligibility, contacts, timeline</li>
+        <li><b>8 Organization Types:</b> Companies, universities, hospitals, institutes, government, academic centers, foundations, non-profits</li>
+        <li><b>Smart Export:</b> CSV includes only the data fields you selected</li>
       </ul>
     </div>
   </div>
 
   <script>
     let currentResults = null;
+
+    // Data extraction card selection
+    document.getElementById('dataExtractGrid').addEventListener('click', (e) => {
+      const card = e.target.closest('.org-type-card');
+      if (!card) return;
+      
+      const checkbox = card.querySelector('input[type="checkbox"]');
+      if (e.target !== checkbox) {
+        checkbox.checked = !checkbox.checked;
+      }
+      
+      card.classList.toggle('selected', checkbox.checked);
+      updateDataExtractSelectAll();
+    });
+
+    // Select all data extraction functionality
+    function updateDataExtractSelectAll() {
+      const allBoxes = Array.from(document.querySelectorAll('#dataExtractGrid input[type="checkbox"]'));
+      const selectAll = document.getElementById('dataExtractSelectAll');
+      const checkedCount = allBoxes.filter(b => b.checked).length;
+      
+      if (checkedCount === 0) {
+        selectAll.checked = false;
+        selectAll.indeterminate = false;
+      } else if (checkedCount === allBoxes.length) {
+        selectAll.checked = true;
+        selectAll.indeterminate = false;
+      } else {
+        selectAll.checked = false;
+        selectAll.indeterminate = true;
+      }
+    }
+
+    document.getElementById('dataExtractSelectAll').addEventListener('change', (e) => {
+      const allBoxes = document.querySelectorAll('#dataExtractGrid input[type="checkbox"]');
+      const allCards = document.querySelectorAll('#dataExtractGrid .org-type-card');
+      
+      allBoxes.forEach(box => {
+        box.checked = e.target.checked;
+      });
+      
+      allCards.forEach(card => {
+        card.classList.toggle('selected', e.target.checked);
+      });
+      
+      e.target.indeterminate = false;
+    });
 
     // Organization type card selection
     document.getElementById('orgTypesGrid').addEventListener('click', (e) => {
@@ -412,6 +553,11 @@
       return Array.from(checkboxes).map(cb => cb.value);
     }
 
+    function getSelectedDataExtractions() {
+      const checkboxes = document.querySelectorAll('#dataExtractGrid input[type="checkbox"]:checked');
+      return Array.from(checkboxes).map(cb => cb.value);
+    }
+
     async function searchTrials() {
       const keywords = document.getElementById('keywords').value.trim();
       if (!keywords) {
@@ -422,6 +568,12 @@
       const selectedTypes = getSelectedOrgTypes();
       if (selectedTypes.length === 0) {
         showError('Please select at least one organization type.');
+        return;
+      }
+
+      const selectedExtractions = getSelectedDataExtractions();
+      if (selectedExtractions.length === 0) {
+        showError('Please select at least one data field to extract.');
         return;
       }
 
@@ -438,7 +590,8 @@
             statuses: getCheckedValues('status-group'),
             phases: getCheckedValues('phase-group'),
             maxResults: document.getElementById('maxResults').value,
-            organizationTypes: selectedTypes
+            organizationTypes: selectedTypes,
+            dataExtractions: selectedExtractions
           })
         });
 
@@ -470,39 +623,66 @@
           <div class="stat-label">Trials Found</div>
         </div>
         <div class="stat-box">
-          <div class="stat-number">${data.stats.uniqueCompanies}</div>
-          <div class="stat-label">Organizations</div>
+          <div class="stat-number">${data.stats.extractedRecords}</div>
+          <div class="stat-label">Records Extracted</div>
         </div>
         <div class="stat-box">
-          <div class="stat-number">${data.stats.sponsors}</div>
-          <div class="stat-label">Lead Sponsors</div>
+          <div class="stat-number">${data.stats.uniqueOrganizations || 0}</div>
+          <div class="stat-label">Unique Organizations</div>
         </div>
         <div class="stat-box">
-          <div class="stat-number">${data.stats.collaborators}</div>
-          <div class="stat-label">Collaborators</div>
+          <div class="stat-number">${data.stats.dataFieldsExtracted}</div>
+          <div class="stat-label">Data Fields</div>
         </div>
       `;
 
-      companiesList.innerHTML = data.companies.map(c => `
-        <div class="company-item">
-          <div>
-            <div class="company-name">${c.name}</div>
-            <div class="company-type">${c.role}</div>
-            <span class="company-org-type">${c.orgType || 'Company'}</span>
+      // Display preview of extracted data
+      const preview = data.preview || [];
+      companiesList.innerHTML = preview.map(record => {
+        const title = record.title || 'Untitled Study';
+        const nctId = record.nct_id || '';
+        const leadSponsor = record.lead_sponsor || 'N/A';
+        const status = record.status || '';
+        
+        // Build additional info based on what was extracted
+        let additionalInfo = [];
+        if (record.principal_investigators) {
+          additionalInfo.push(`PI: ${record.principal_investigators.split('; ')[0]}`);
+        }
+        if (record.location_count) {
+          additionalInfo.push(`${record.location_count} locations`);
+        }
+        if (record.intervention_count) {
+          additionalInfo.push(`${record.intervention_count} interventions`);
+        }
+        
+        return `
+          <div class="company-item">
+            <div style="flex: 1;">
+              <div class="company-name">${title.substring(0, 80)}${title.length > 80 ? '...' : ''}</div>
+              <div class="company-type">
+                NCT: ${nctId} | Lead: ${leadSponsor} | Status: ${status}
+              </div>
+              ${additionalInfo.length > 0 ? `<div class="company-org-type">${additionalInfo.join(' • ')}</div>` : ''}
+            </div>
           </div>
-          <div class="company-count">${c.trialCount}</div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
+
+      if (preview.length < data.stats.extractedRecords) {
+        companiesList.innerHTML += `
+          <div style="text-align: center; padding: 20px; color: #6b7280;">
+            Showing first 100 of ${data.stats.extractedRecords} records. 
+            <br>Export CSV to see all data.
+          </div>
+        `;
+      }
 
       resultsDiv.classList.add('active');
     }
 
     function exportToCSV() {
       window.open('/api/export/csv', '_blank');
-    }
-
-    function exportDetailed() {
-      window.open('/api/export/detailed', '_blank');
     }
 
     function setupSelectAll(selectAllId, groupId) {
