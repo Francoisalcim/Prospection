@@ -1,26 +1,25 @@
 #!/usr/bin/env python3
 """
-Clinical Trials Prospector - Python Backend with Flexible Filtering
-Allows users to select which organization types to include/exclude
+Clinical Trials Prospector - V3 with Flexible Data Extraction
+Allows users to select which data fields they want to extract
 """
 
 import requests
 import json
 import csv
 import time
-from typing import List, Dict, Set
+from typing import List, Dict, Set, Optional
 from collections import defaultdict
 from datetime import datetime
 import re
 
 
 class ClinicalTrialsProspector:
-    """Handles fetching and processing clinical trials data"""
+    """Handles fetching and processing clinical trials data with flexible extraction"""
     
     BASE_URL = "https://clinicaltrials.gov/api/v2/studies"
     
-    # Organization type categories with keywords
-    # Users can select which types to INCLUDE or EXCLUDE
+    # Organization type categories
     ORGANIZATION_TYPES = {
         'university': {
             'keywords': ['university', 'universite', 'universität', 'universidad', 'universiti', 
@@ -56,73 +55,106 @@ class ClinicalTrialsProspector:
             'label': 'Non-Profit Organizations'
         },
         'company': {
-            # No keywords - these are identified by NOT matching other categories
             'keywords': [],
-            'label': 'Commercial Companies (default)'
+            'label': 'Commercial Companies'
         }
     }
     
-    def __init__(self, include_types=None, exclude_types=None):
+    # Data extraction options - what users can choose to extract
+    DATA_EXTRACTION_OPTIONS = {
+        'sponsors': {
+            'label': 'Sponsors & Collaborators',
+            'description': 'Lead sponsors and collaborating organizations',
+            'default': True
+        },
+        'investigators': {
+            'label': 'Principal Investigators',
+            'description': 'Lead researchers and their affiliations',
+            'default': False
+        },
+        'locations': {
+            'label': 'Study Locations',
+            'description': 'Facilities, cities, countries where study is conducted',
+            'default': False
+        },
+        'interventions': {
+            'label': 'Interventions',
+            'description': 'Drugs, devices, procedures being tested',
+            'default': False
+        },
+        'conditions': {
+            'label': 'Conditions',
+            'description': 'Diseases and conditions being studied',
+            'default': False
+        },
+        'outcomes': {
+            'label': 'Study Outcomes',
+            'description': 'Primary and secondary outcome measures',
+            'default': False
+        },
+        'design': {
+            'label': 'Study Design',
+            'description': 'Phase, type, enrollment, randomization details',
+            'default': False
+        },
+        'eligibility': {
+            'label': 'Eligibility Criteria',
+            'description': 'Age, gender, inclusion/exclusion criteria',
+            'default': False
+        },
+        'contacts': {
+            'label': 'Contact Information',
+            'description': 'Recruitment contacts and emails',
+            'default': False
+        },
+        'timeline': {
+            'label': 'Dates & Timeline',
+            'description': 'Start date, completion date, last update',
+            'default': False
+        }
+    }
+    
+    def __init__(self, include_types=None, exclude_types=None, extraction_options=None):
         """
-        Initialize prospector with filtering options
+        Initialize prospector with filtering and extraction options
         
         Args:
-            include_types: List of organization types to INCLUDE (None = all)
-            exclude_types: List of organization types to EXCLUDE (None = none)
-        
-        Example:
-            # Only include companies
-            prospector = ClinicalTrialsProspector(include_types=['company'])
-            
-            # Include everything except universities and hospitals
-            prospector = ClinicalTrialsProspector(exclude_types=['university', 'hospital'])
+            include_types: List of organization types to INCLUDE
+            exclude_types: List of organization types to EXCLUDE
+            extraction_options: List of data fields to extract (default: ['sponsors'])
         """
         self.trials_data = []
-        self.companies_data = {}
+        self.extracted_data = []  # New: flexible extracted data
         self.include_types = include_types
         self.exclude_types = exclude_types or []
+        self.extraction_options = extraction_options or ['sponsors']
         
     def get_organization_type(self, name: str) -> str:
-        """
-        Determine the organization type based on its name
-        
-        Returns:
-            Type key (e.g., 'university', 'hospital', 'company')
-        """
+        """Determine the organization type based on its name"""
         if not name:
             return 'unknown'
             
         name_lower = name.lower()
         
-        # Check each category (except 'company' which is default)
         for org_type, info in self.ORGANIZATION_TYPES.items():
             if org_type == 'company':
                 continue
-            
             for keyword in info['keywords']:
                 if keyword in name_lower:
                     return org_type
         
-        # If no match, it's a company
         return 'company'
     
     def should_include_organization(self, name: str) -> bool:
-        """
-        Check if organization should be included based on filtering rules
-        
-        Returns:
-            True if organization should be included, False otherwise
-        """
+        """Check if organization should be included based on filtering rules"""
         if not name:
             return False
         
         org_type = self.get_organization_type(name)
         
-        # If include_types is specified, only include those types
         if self.include_types is not None:
             return org_type in self.include_types
         
-        # Otherwise, exclude specified types
         return org_type not in self.exclude_types
     
     def build_query_term(self, keywords: List[str], phases: List[str] = None) -> str:
@@ -144,18 +176,7 @@ class ClinicalTrialsProspector:
                      statuses: List[str] = None,
                      phases: List[str] = None,
                      max_results: int = 500) -> List[Dict]:
-        """
-        Fetch clinical trials from ClinicalTrials.gov API with pagination
-        
-        Args:
-            keywords: List of search keywords
-            statuses: List of study statuses to filter
-            phases: List of study phases to filter
-            max_results: Maximum number of results to fetch
-        
-        Returns:
-            List of study dictionaries
-        """
+        """Fetch clinical trials from ClinicalTrials.gov API with pagination"""
         self.trials_data = []
         page_size = 100
         page_token = None
@@ -164,6 +185,7 @@ class ClinicalTrialsProspector:
         
         print("🔍 Searching for: {}".format(query_term))
         print("📊 Filters: Statuses={}, Max Results={}".format(statuses or 'All', max_results))
+        print("📋 Extracting: {}".format(', '.join(self.extraction_options)))
         
         while len(self.trials_data) < max_results:
             params = {
@@ -196,7 +218,6 @@ class ClinicalTrialsProspector:
                 if not page_token:
                     break
                 
-                # Be polite to the API
                 time.sleep(0.2)
                 
             except requests.exceptions.RequestException as e:
@@ -206,288 +227,331 @@ class ClinicalTrialsProspector:
         print("✅ Fetched {} trials".format(len(self.trials_data)))
         return self.trials_data
     
-    def extract_companies(self, trials: List[Dict] = None) -> Dict:
+    def extract_data(self, trials: List[Dict] = None) -> List[Dict]:
         """
-        Extract organization information from trials with filtering
+        Extract selected data fields from trials
         
         Returns:
-            Dictionary with organization names as keys and their details as values
+            List of dictionaries with extracted data based on user selection
         """
         if trials is None:
             trials = self.trials_data
         
-        self.companies_data = {}
-        stats_by_type = defaultdict(int)
-        excluded_count = 0
+        self.extracted_data = []
         
         for study in trials:
             try:
                 ps = study.get('protocolSection', {})
                 nct_id = ps.get('identificationModule', {}).get('nctId', '')
                 
-                # Get sponsors and collaborators
-                sponsors_module = (ps.get('sponsorsCollaboratorsModule') or 
-                                 ps.get('sponsorCollaboratorsModule', {}))
+                # Start with base data (always included)
+                extracted = {
+                    'nct_id': nct_id,
+                    'title': ps.get('identificationModule', {}).get('briefTitle', ''),
+                    'status': ps.get('statusModule', {}).get('overallStatus', '')
+                }
                 
-                # Process lead sponsor
-                lead_sponsor = sponsors_module.get('leadSponsor', {})
-                if lead_sponsor.get('name'):
-                    name = lead_sponsor['name'].strip()
-                    org_type = self.get_organization_type(name)
-                    stats_by_type[org_type] += 1
+                # Extract based on user selections
+                if 'sponsors' in self.extraction_options:
+                    extracted.update(self._extract_sponsors(ps))
+                
+                if 'investigators' in self.extraction_options:
+                    extracted.update(self._extract_investigators(ps))
+                
+                if 'locations' in self.extraction_options:
+                    extracted.update(self._extract_locations(ps))
+                
+                if 'interventions' in self.extraction_options:
+                    extracted.update(self._extract_interventions(ps))
+                
+                if 'conditions' in self.extraction_options:
+                    extracted.update(self._extract_conditions(ps))
+                
+                if 'outcomes' in self.extraction_options:
+                    extracted.update(self._extract_outcomes(ps))
+                
+                if 'design' in self.extraction_options:
+                    extracted.update(self._extract_design(ps))
+                
+                if 'eligibility' in self.extraction_options:
+                    extracted.update(self._extract_eligibility(ps))
+                
+                if 'contacts' in self.extraction_options:
+                    extracted.update(self._extract_contacts(ps))
+                
+                if 'timeline' in self.extraction_options:
+                    extracted.update(self._extract_timeline(ps))
+                
+                # Apply organization filtering (if sponsors is selected)
+                if 'sponsors' in self.extraction_options:
+                    lead_sponsor = extracted.get('lead_sponsor', '')
+                    if lead_sponsor and self.should_include_organization(lead_sponsor):
+                        self.extracted_data.append(extracted)
+                else:
+                    # If not filtering by sponsors, include all
+                    self.extracted_data.append(extracted)
                     
-                    if self.should_include_organization(name):
-                        self._upsert_company(name, 'LEAD', nct_id, org_type)
-                    else:
-                        excluded_count += 1
-                
-                # Process collaborators
-                collaborators = sponsors_module.get('collaborators', [])
-                for collab in collaborators:
-                    if collab.get('name'):
-                        name = collab['name'].strip()
-                        org_type = self.get_organization_type(name)
-                        stats_by_type[org_type] += 1
-                        
-                        if self.should_include_organization(name):
-                            self._upsert_company(name, 'COLLAB', nct_id, org_type)
-                        else:
-                            excluded_count += 1
-                            
             except Exception as e:
                 print("⚠️  Warning: Error processing study {}: {}".format(nct_id, e))
                 continue
         
-        print("\n📊 Organization Type Breakdown:")
-        for org_type, count in sorted(stats_by_type.items(), key=lambda x: x[1], reverse=True):
-            label = self.ORGANIZATION_TYPES.get(org_type, {}).get('label', org_type)
-            status = "✓ INCLUDED" if (self.include_types is None or org_type in self.include_types) and org_type not in self.exclude_types else "✗ EXCLUDED"
-            print(f"  {label:40s}: {count:4d} {status}")
-        
-        print(f"\n✅ Included: {len(self.companies_data)} organizations")
-        print(f"❌ Excluded: {excluded_count} organizations")
-        
-        return self.companies_data
+        print(f"\n✅ Extracted data from {len(self.extracted_data)} trials")
+        return self.extracted_data
     
-    def _upsert_company(self, name: str, role: str, nct_id: str, org_type: str = 'company'):
-        """Add or update organization in the companies_data dictionary"""
-        if name not in self.companies_data:
-            self.companies_data[name] = {
-                'name': name,
-                'org_type': org_type,
-                'org_type_label': self.ORGANIZATION_TYPES.get(org_type, {}).get('label', org_type),
-                'lead_count': 0,
-                'collab_count': 0,
-                'trial_count': 0,
-                'nct_ids': set()
-            }
+    def _extract_sponsors(self, ps: Dict) -> Dict:
+        """Extract sponsor and collaborator information"""
+        sponsors_module = (ps.get('sponsorsCollaboratorsModule') or 
+                          ps.get('sponsorCollaboratorsModule', {}))
         
-        company = self.companies_data[name]
+        lead_sponsor = sponsors_module.get('leadSponsor', {}).get('name', '')
+        lead_sponsor_class = sponsors_module.get('leadSponsor', {}).get('class', '')
         
-        if role == 'LEAD':
-            company['lead_count'] += 1
-        elif role == 'COLLAB':
-            company['collab_count'] += 1
+        collaborators = sponsors_module.get('collaborators', [])
+        collab_names = [c.get('name', '') for c in collaborators if c.get('name')]
         
-        company['trial_count'] += 1
-        if nct_id:
-            company['nct_ids'].add(nct_id)
+        return {
+            'lead_sponsor': lead_sponsor,
+            'lead_sponsor_class': lead_sponsor_class,
+            'lead_sponsor_type': self.get_organization_type(lead_sponsor),
+            'collaborators': '; '.join(collab_names),
+            'collaborator_count': len(collab_names)
+        }
     
-    def export_to_csv(self, filename: str = None):
-        """Export companies to CSV for PhantomBuster"""
-        if not self.companies_data:
+    def _extract_investigators(self, ps: Dict) -> Dict:
+        """Extract principal investigator information"""
+        contacts_module = ps.get('contactsLocationsModule', {})
+        officials = contacts_module.get('overallOfficials', [])
+        
+        pi_names = []
+        pi_affiliations = []
+        
+        for official in officials:
+            if official.get('role') in ['PRINCIPAL_INVESTIGATOR', 'STUDY_DIRECTOR']:
+                pi_names.append(official.get('name', ''))
+                pi_affiliations.append(official.get('affiliation', ''))
+        
+        return {
+            'principal_investigators': '; '.join(pi_names),
+            'pi_affiliations': '; '.join(pi_affiliations),
+            'pi_count': len(pi_names)
+        }
+    
+    def _extract_locations(self, ps: Dict) -> Dict:
+        """Extract study location information"""
+        contacts_module = ps.get('contactsLocationsModule', {})
+        locations = contacts_module.get('locations', [])
+        
+        facilities = []
+        cities = []
+        countries = []
+        
+        for loc in locations:
+            if loc.get('facility'):
+                facilities.append(loc['facility'])
+            if loc.get('city'):
+                cities.append(loc['city'])
+            if loc.get('country'):
+                countries.append(loc['country'])
+        
+        return {
+            'facilities': '; '.join(set(facilities)),
+            'cities': '; '.join(set(cities)),
+            'countries': '; '.join(set(countries)),
+            'location_count': len(locations)
+        }
+    
+    def _extract_interventions(self, ps: Dict) -> Dict:
+        """Extract intervention information"""
+        arms_module = ps.get('armsInterventionsModule', {})
+        interventions = arms_module.get('interventions', [])
+        
+        drugs = []
+        devices = []
+        procedures = []
+        other = []
+        
+        for intervention in interventions:
+            int_type = intervention.get('type', '')
+            name = intervention.get('name', '')
+            
+            if int_type == 'DRUG':
+                drugs.append(name)
+            elif int_type == 'DEVICE':
+                devices.append(name)
+            elif int_type in ['PROCEDURE', 'SURGERY']:
+                procedures.append(name)
+            else:
+                other.append(name)
+        
+        return {
+            'drugs': '; '.join(drugs),
+            'devices': '; '.join(devices),
+            'procedures': '; '.join(procedures),
+            'other_interventions': '; '.join(other),
+            'intervention_count': len(interventions)
+        }
+    
+    def _extract_conditions(self, ps: Dict) -> Dict:
+        """Extract condition/disease information"""
+        cond_module = ps.get('conditionsModule', {})
+        conditions = cond_module.get('conditions', [])
+        keywords = cond_module.get('keywords', [])
+        
+        return {
+            'conditions': '; '.join(conditions),
+            'keywords': '; '.join(keywords),
+            'condition_count': len(conditions)
+        }
+    
+    def _extract_outcomes(self, ps: Dict) -> Dict:
+        """Extract outcome measure information"""
+        outcomes_module = ps.get('outcomesModule', {})
+        primary_outcomes = outcomes_module.get('primaryOutcomes', [])
+        secondary_outcomes = outcomes_module.get('secondaryOutcomes', [])
+        
+        primary_measures = [o.get('measure', '') for o in primary_outcomes]
+        secondary_measures = [o.get('measure', '') for o in secondary_outcomes]
+        
+        return {
+            'primary_outcomes': '; '.join(primary_measures),
+            'secondary_outcomes': '; '.join(secondary_measures),
+            'primary_outcome_count': len(primary_measures),
+            'secondary_outcome_count': len(secondary_measures)
+        }
+    
+    def _extract_design(self, ps: Dict) -> Dict:
+        """Extract study design information"""
+        design_module = ps.get('designModule', {})
+        
+        phases = design_module.get('phases', [])
+        study_type = design_module.get('studyType', '')
+        enrollment = design_module.get('enrollmentInfo', {})
+        
+        design_info = design_module.get('designInfo', {})
+        allocation = design_info.get('allocation', '')
+        intervention_model = design_info.get('interventionModel', '')
+        primary_purpose = design_info.get('primaryPurpose', '')
+        masking = design_info.get('maskingInfo', {}).get('masking', '')
+        
+        return {
+            'phase': ', '.join(phases),
+            'study_type': study_type,
+            'enrollment': enrollment.get('count', 0),
+            'allocation': allocation,
+            'intervention_model': intervention_model,
+            'primary_purpose': primary_purpose,
+            'masking': masking
+        }
+    
+    def _extract_eligibility(self, ps: Dict) -> Dict:
+        """Extract eligibility criteria"""
+        eligibility_module = ps.get('eligibilityModule', {})
+        
+        return {
+            'min_age': eligibility_module.get('minimumAge', ''),
+            'max_age': eligibility_module.get('maximumAge', ''),
+            'sex': eligibility_module.get('sex', ''),
+            'healthy_volunteers': eligibility_module.get('healthyVolunteers', ''),
+            'eligibility_criteria': eligibility_module.get('eligibilityCriteria', '')[:500]  # Truncate
+        }
+    
+    def _extract_contacts(self, ps: Dict) -> Dict:
+        """Extract contact information"""
+        contacts_module = ps.get('contactsLocationsModule', {})
+        central_contacts = contacts_module.get('centralContacts', [])
+        
+        contact_names = []
+        contact_emails = []
+        contact_phones = []
+        
+        for contact in central_contacts:
+            if contact.get('name'):
+                contact_names.append(contact['name'])
+            if contact.get('email'):
+                contact_emails.append(contact['email'])
+            if contact.get('phone'):
+                contact_phones.append(contact['phone'])
+        
+        return {
+            'contact_name': '; '.join(contact_names),
+            'contact_email': '; '.join(contact_emails),
+            'contact_phone': '; '.join(contact_phones)
+        }
+    
+    def _extract_timeline(self, ps: Dict) -> Dict:
+        """Extract date and timeline information"""
+        status_module = ps.get('statusModule', {})
+        
+        start_date = status_module.get('startDateStruct', {}).get('date', '')
+        completion_date = status_module.get('completionDateStruct', {}).get('date', '')
+        last_update = status_module.get('lastUpdatePostDateStruct', {}).get('date', '')
+        
+        return {
+            'start_date': start_date,
+            'completion_date': completion_date,
+            'last_update': last_update
+        }
+    
+    def export_to_csv(self, filename: str = None) -> str:
+        """Export extracted data to CSV"""
+        if not self.extracted_data:
             print("❌ No data to export")
-            return
+            return None
         
         if filename is None:
             date = datetime.now().strftime('%Y-%m-%d')
-            filename = f"ClinicalTrials_Companies_{date}.csv"
+            filename = f"ClinicalTrials_Export_{date}.csv"
         
-        # Sort by trial count
-        sorted_companies = sorted(
-            self.companies_data.values(),
-            key=lambda x: x['trial_count'],
-            reverse=True
-        )
+        # Get all unique keys from extracted data
+        all_keys = set()
+        for row in self.extracted_data:
+            all_keys.update(row.keys())
+        
+        # Sort keys for consistent column order
+        fieldnames = sorted(all_keys)
+        
+        # Move important fields to front
+        priority_fields = ['nct_id', 'title', 'status', 'lead_sponsor']
+        for field in reversed(priority_fields):
+            if field in fieldnames:
+                fieldnames.remove(field)
+                fieldnames.insert(0, field)
         
         with open(filename, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            
-            # Header
-            writer.writerow([
-                'Company Name',
-                'Organization Type',
-                'Role',
-                'Lead Sponsor Mentions',
-                'Collaborator Mentions',
-                'Total Mentions',
-                'LinkedIn Company Search URL'
-            ])
-            
-            # Data rows
-            for company in sorted_companies:
-                role = self._get_role_label(company)
-                linkedin_url = f"https://www.linkedin.com/search/results/companies/?keywords={requests.utils.quote(company['name'])}"
-                
-                writer.writerow([
-                    company['name'],
-                    company.get('org_type_label', 'Unknown'),
-                    role,
-                    company['lead_count'],
-                    company['collab_count'],
-                    company['trial_count'],
-                    linkedin_url
-                ])
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(self.extracted_data)
         
         print("✅ Exported to {}".format(filename))
         return filename
-    
-    def export_detailed_to_csv(self, filename: str = None):
-        """Export detailed trial information to CSV"""
-        if not self.trials_data:
-            print("❌ No data to export")
-            return
-        
-        if filename is None:
-            date = datetime.now().strftime('%Y-%m-%d')
-            filename = f"ClinicalTrials_Detailed_{date}.csv"
-        
-        with open(filename, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            
-            # Header
-            writer.writerow([
-                'NCT ID',
-                'Title',
-                'Status',
-                'Phase',
-                'Lead Sponsor',
-                'Lead Sponsor Type',
-                'Collaborators',
-                'Conditions',
-                'Start Date',
-                'URL'
-            ])
-            
-            # Data rows
-            for study in self.trials_data:
-                ps = study.get('protocolSection', {})
-                id_module = ps.get('identificationModule', {})
-                status_module = ps.get('statusModule', {})
-                design_module = ps.get('designModule', {})
-                cond_module = ps.get('conditionsModule', {})
-                sponsors_module = (ps.get('sponsorsCollaboratorsModule') or 
-                                 ps.get('sponsorCollaboratorsModule', {}))
-                
-                nct_id = id_module.get('nctId', '')
-                lead_name = sponsors_module.get('leadSponsor', {}).get('name', '')
-                lead_type = self.get_organization_type(lead_name)
-                lead_type_label = self.ORGANIZATION_TYPES.get(lead_type, {}).get('label', lead_type)
-                
-                # Get collaborators
-                collaborators = sponsors_module.get('collaborators', [])
-                collab_names = [c.get('name', '') for c in collaborators if c.get('name')]
-                
-                writer.writerow([
-                    nct_id,
-                    id_module.get('briefTitle', ''),
-                    status_module.get('overallStatus', ''),
-                    ', '.join(design_module.get('phases', [])),
-                    lead_name,
-                    lead_type_label,
-                    '; '.join(collab_names),
-                    '; '.join(cond_module.get('conditions', [])),
-                    status_module.get('startDateStruct', {}).get('date', ''),
-                    f"https://clinicaltrials.gov/study/{nct_id}" if nct_id else ''
-                ])
-        
-        print("✅ Exported detailed data to {}".format(filename))
-        return filename
-    
-    def _get_role_label(self, company: Dict) -> str:
-        """Get human-readable role label"""
-        if company['lead_count'] > 0 and company['collab_count'] > 0:
-            return 'Lead+Collaborator'
-        elif company['lead_count'] > 0:
-            return 'Lead Sponsor'
-        else:
-            return 'Collaborator'
-    
-    def print_summary(self):
-        """Print a summary of the results"""
-        print("\n" + "="*60)
-        print("📊 SUMMARY")
-        print("="*60)
-        print("Total Trials: {}".format(len(self.trials_data)))
-        print("Total Organizations (filtered): {}".format(len(self.companies_data)))
-        
-        sponsors = sum(1 for c in self.companies_data.values() if c['lead_count'] > 0)
-        collaborators = sum(1 for c in self.companies_data.values() if c['collab_count'] > 0)
-        
-        print("Organizations as Lead Sponsor: {}".format(sponsors))
-        print("Organizations as Collaborator: {}".format(collaborators))
-        
-        print("\n🏆 Top 10 Organizations by Trial Count:")
-        sorted_companies = sorted(
-            self.companies_data.values(),
-            key=lambda x: x['trial_count'],
-            reverse=True
-        )[:10]
-        
-        for i, company in enumerate(sorted_companies, 1):
-            role = self._get_role_label(company)
-            org_label = company.get('org_type_label', 'Unknown')
-            print("  {:2d}. {:40s} | {:3d} trials | {:20s} | {}".format(
-                i, company['name'][:40], company['trial_count'], org_label, role))
-        
-        print("="*60 + "\n")
 
 
 def main():
-    """Example usage"""
+    """Example usage with different extraction options"""
     
-    # Example 1: Only include commercial companies (default behavior)
-    print("\n" + "="*60)
-    print("EXAMPLE 1: Only Commercial Companies")
-    print("="*60)
-    prospector = ClinicalTrialsProspector(include_types=['company'])
-    
-    trials = prospector.fetch_trials(
-        keywords=['diabetes'],
-        statuses=['RECRUITING', 'ACTIVE_NOT_RECRUITING'],
-        max_results=100
+    # Example 1: Extract only sponsors (default)
+    print("\n" + "="*70)
+    print("EXAMPLE 1: Sponsors Only")
+    print("="*70)
+    prospector = ClinicalTrialsProspector(
+        include_types=['company'],
+        extraction_options=['sponsors']
     )
+    trials = prospector.fetch_trials(keywords=['diabetes'], max_results=50)
+    data = prospector.extract_data()
+    print(f"Extracted {len(data)} records with sponsor data")
     
-    companies = prospector.extract_companies()
-    prospector.print_summary()
-    
-    # Example 2: Include companies AND universities
-    print("\n" + "="*60)
-    print("EXAMPLE 2: Companies + Universities")
-    print("="*60)
-    prospector2 = ClinicalTrialsProspector(include_types=['company', 'university'])
-    
-    trials2 = prospector2.fetch_trials(
-        keywords=['mRNA'],
-        max_results=100
+    # Example 2: Extract multiple data fields
+    print("\n" + "="*70)
+    print("EXAMPLE 2: Comprehensive Extraction")
+    print("="*70)
+    prospector2 = ClinicalTrialsProspector(
+        include_types=['company', 'university'],
+        extraction_options=['sponsors', 'investigators', 'locations', 'interventions', 'design']
     )
-    
-    companies2 = prospector2.extract_companies()
-    prospector2.print_summary()
-    
-    # Example 3: Exclude only hospitals
-    print("\n" + "="*60)
-    print("EXAMPLE 3: Everything Except Hospitals")
-    print("="*60)
-    prospector3 = ClinicalTrialsProspector(exclude_types=['hospital'])
-    
-    trials3 = prospector3.fetch_trials(
-        keywords=['CAR-T'],
-        max_results=100
-    )
-    
-    companies3 = prospector3.extract_companies()
-    prospector3.print_summary()
+    trials2 = prospector2.fetch_trials(keywords=['mRNA'], max_results=50)
+    data2 = prospector2.extract_data()
+    prospector2.export_to_csv('comprehensive_export.csv')
 
 
 if __name__ == "__main__":
