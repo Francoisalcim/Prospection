@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Flask web server for Clinical Trials Prospector
-Production-ready version for Render.com deployment
+Flask web server for Clinical Trials Prospector v2
+With flexible organization type filtering
 """
 
 from flask import Flask, render_template, request, jsonify, send_file
@@ -9,12 +9,13 @@ from flask_cors import CORS
 import os
 import sys
 
-# Import your ClinicalTrialsProspector class
+# Import the updated prospector class
 try:
     from clinical_trials_prospector import ClinicalTrialsProspector
 except ImportError:
     print("❌ Error: Could not import ClinicalTrialsProspector")
     print("Make sure your backend file is named: clinical_trials_prospector.py")
+    print("You can rename clinical_trials_prospector_v2.py to clinical_trials_prospector.py")
     sys.exit(1)
 
 app = Flask(__name__)
@@ -32,7 +33,7 @@ def index():
 
 @app.route('/api/search', methods=['POST'])
 def search():
-    """Handle search requests"""
+    """Handle search requests with organization type filtering"""
     try:
         data = request.json
         
@@ -46,17 +47,30 @@ def search():
         phases = data.get('phases', [])
         max_results_raw = data.get('maxResults', '500')
         
+        # NEW: Organization type filtering
+        org_types = data.get('organizationTypes', ['company'])  # Default to companies only
+        filter_mode = data.get('filterMode', 'include')  # 'include' or 'exclude'
+        
         # Handle "ALL" option
         if max_results_raw == 'ALL':
-            max_results = 100000  # Reasonable upper limit
+            max_results = 10000
         else:
             max_results = int(max_results_raw)
         
-        print(f"🔍 Search request: keywords={keywords}, statuses={statuses}, phases={phases}, max={max_results}")
+        print(f"🔍 Search request:")
+        print(f"   Keywords: {keywords}")
+        print(f"   Statuses: {statuses}")
+        print(f"   Phases: {phases}")
+        print(f"   Max Results: {max_results}")
+        print(f"   Organization Types: {org_types}")
+        print(f"   Filter Mode: {filter_mode}")
         
-        # Create new prospector instance for this search
+        # Create new prospector instance with filtering
         global prospector
-        prospector = ClinicalTrialsProspector()
+        if filter_mode == 'include':
+            prospector = ClinicalTrialsProspector(include_types=org_types)
+        else:  # exclude mode
+            prospector = ClinicalTrialsProspector(exclude_types=org_types)
         
         # Fetch trials
         trials = prospector.fetch_trials(
@@ -66,7 +80,7 @@ def search():
             max_results=max_results
         )
         
-        # Extract companies (automatically filters out universities/institutes)
+        # Extract companies with filtering
         companies = prospector.extract_companies()
         
         # Prepare companies list for response
@@ -76,7 +90,8 @@ def search():
             companies_list.append({
                 'name': company['name'],
                 'role': role,
-                'trialCount': company['trial_count']  # Match what HTML expects
+                'trialCount': company['trial_count'],
+                'orgType': company.get('org_type_label', 'Unknown')
             })
         
         # Calculate stats
@@ -93,7 +108,7 @@ def search():
             'companies': companies_list
         }
         
-        print(f"✅ Returning {len(trials)} trials, {len(companies)} companies")
+        print(f"✅ Returning {len(trials)} trials, {len(companies)} organizations")
         return jsonify(response_data)
         
     except Exception as e:
@@ -155,10 +170,23 @@ def export_detailed():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/organization-types', methods=['GET'])
+def get_organization_types():
+    """Return available organization types for the UI"""
+    types_info = []
+    for key, info in ClinicalTrialsProspector.ORGANIZATION_TYPES.items():
+        types_info.append({
+            'key': key,
+            'label': info['label'],
+            'keywords': info['keywords']
+        })
+    return jsonify({'organizationTypes': types_info})
+
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint for monitoring"""
-    return jsonify({'status': 'healthy', 'service': 'clinical-trials-prospector'}), 200
+    return jsonify({'status': 'healthy', 'service': 'clinical-trials-prospector-v2'}), 200
 
 
 if __name__ == '__main__':
@@ -166,14 +194,13 @@ if __name__ == '__main__':
     os.makedirs('templates', exist_ok=True)
     
     # Get port from environment variable (Render sets this)
-    # Default to 5000 for local development
     port = int(os.environ.get('PORT', 5000))
     
     # Determine if running in production
     is_production = os.environ.get('RENDER') is not None
     
     print("\n" + "="*60)
-    print("🚀 Clinical Trials Prospector - Flask Server")
+    print("🚀 Clinical Trials Prospector v2 - Flask Server")
     print("="*60)
     if is_production:
         print("🌐 Running in PRODUCTION mode (Render)")
@@ -182,13 +209,12 @@ if __name__ == '__main__':
         print("💻 Running in DEVELOPMENT mode (Local)")
         print(f"📱 Open your browser at: http://localhost:{port}")
         print("📁 Make sure index.html is in the 'templates' folder")
+    print("✨ NEW: Organization type filtering enabled")
     print("🛑 Press Ctrl+C to stop")
     print("="*60 + "\n")
     
-    # CRITICAL: Must bind to 0.0.0.0 and use PORT from environment
-    # This is required for Render and other cloud platforms
     app.run(
-        debug=not is_production,  # Debug OFF in production
-        host='0.0.0.0',           # Must be 0.0.0.0 for cloud deployment
-        port=port                 # Must use environment PORT variable
+        debug=not is_production,
+        host='0.0.0.0',
+        port=port
     )
