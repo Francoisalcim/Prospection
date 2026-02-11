@@ -83,23 +83,6 @@
       color: #6b7280;
       margin-top: 4px;
     }
-    .filter-mode {
-      background: #fef3c7;
-      border: 1px solid #fbbf24;
-      border-radius: 6px;
-      padding: 12px;
-      margin-bottom: 15px;
-      display: flex;
-      gap: 20px;
-      align-items: center;
-    }
-    .filter-mode label {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      margin-bottom: 0;
-      cursor: pointer;
-    }
     
     .btn {
       width: 100%; padding: 14px; background: #2563eb; color: white;
@@ -174,27 +157,76 @@
 <body>
   <div class="container">
     <h1>Clinical Trials Prospector</h1>
-    <p class="subtitle">Search clinical trials from ClinicalTrials.gov and extract the relevant inforamtion for your research</p>
+    <p class="subtitle">Search for sponsors and collaborators from ClinicalTrials.gov</p>
     <div class="info-badge">✓ Flexible organization type filtering</div>
+
+    <div class="section">
+      <h3>Search Parameters</h3>
+
+      <div class="form-group">
+        <label for="keywords">Keywords *</label>
+        <textarea id="keywords" placeholder="Enter keywords separated by commas (e.g., diabetes, CAR-T therapy, cardiovascular)"></textarea>
+        <div class="hint">Tip: Use commas to add multiple keywords. Example: <b>mRNA, vaccine</b></div>
+      </div>
+
+      <div class="filters">
+        <div class="form-group">
+          <label>Study Status</label>
+          <label style="margin-bottom:10px;">
+            <input type="checkbox" id="statusSelectAll" />
+            <span>Select all</span>
+          </label>
+          <div class="checkbox-group" id="status-group">
+            <label><input type="checkbox" value="RECRUITING"> Recruiting</label>
+            <label><input type="checkbox" value="ACTIVE_NOT_RECRUITING"> Active, not recruiting</label>
+            <label><input type="checkbox" value="COMPLETED"> Completed</label>
+            <label><input type="checkbox" value="ENROLLING_BY_INVITATION"> Enrolling by invitation</label>
+            <label><input type="checkbox" value="NOT_YET_RECRUITING"> Not yet recruiting</label>
+            <label><input type="checkbox" value="SUSPENDED"> Suspended</label>
+            <label><input type="checkbox" value="TERMINATED"> Terminated</label>
+            <label><input type="checkbox" value="WITHDRAWN"> Withdrawn</label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Study Phase</label>
+          <label style="margin-bottom:10px;">
+            <input type="checkbox" id="phaseSelectAll" />
+            <span>Select all</span>
+          </label>
+          <div class="checkbox-group" id="phase-group">
+            <label><input type="checkbox" value="EARLY_PHASE1"> Early Phase 1</label>
+            <label><input type="checkbox" value="PHASE1"> Phase 1</label>
+            <label><input type="checkbox" value="PHASE2"> Phase 2</label>
+            <label><input type="checkbox" value="PHASE3"> Phase 3</label>
+            <label><input type="checkbox" value="PHASE4"> Phase 4</label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="maxResults">Max Results</label>
+          <select id="maxResults">
+            <option value="100">100 studies</option>
+            <option value="250">250 studies</option>
+            <option value="500" selected>500 studies</option>
+            <option value="1000">1000 studies</option>
+            <option value="ALL">All results</option>
+          </select>
+        </div>
+      </div>
+    </div>
 
     <!-- NEW: Organization Type Filtering -->
     <div class="section">
       <h3>Organization Types to Include</h3>
       <div class="hint" style="margin-bottom: 15px;">
-        Select which types of organizations you want to see in the results. By default, only commercial companies are included.
+        Select which types of organizations you want to see in the results. Check multiple types or use "Select All".
       </div>
 
-      <div class="filter-mode">
-        <span style="font-weight: 500; color: #92400e;">Filter Mode:</span>
-        <label>
-          <input type="radio" name="filterMode" value="include" checked />
-          <span>Include selected types</span>
-        </label>
-        <label>
-          <input type="radio" name="filterMode" value="exclude" />
-          <span>Exclude selected types</span>
-        </label>
-      </div>
+      <label style="margin-bottom:15px; display: flex; gap: 8px; align-items: center; cursor: pointer;">
+        <input type="checkbox" id="orgTypesSelectAll" />
+        <span style="font-weight: 600; color: #1f2937;">Select All Organization Types</span>
+      </label>
 
       <div class="org-types-grid" id="orgTypesGrid">
         <div class="org-type-card selected" data-type="company">
@@ -263,62 +295,6 @@
       </div>
     </div>
 
-    <div class="section">
-      <h3>Search Parameters</h3>
-
-      <div class="form-group">
-        <label for="keywords">Keywords *</label>
-        <textarea id="keywords" placeholder="Enter keywords separated by commas (e.g., diabetes, CAR-T therapy, cardiovascular)"></textarea>
-        <div class="hint">Tip: Use commas to add multiple keywords. Example: <b>mRNA, vaccine</b></div>
-      </div>
-
-      <div class="filters">
-        <div class="form-group">
-          <label>Study Status</label>
-          <label style="margin-bottom:10px;">
-            <input type="checkbox" id="statusSelectAll" />
-            <span>Select all</span>
-          </label>
-          <div class="checkbox-group" id="status-group">
-            <label><input type="checkbox" value="RECRUITING"> Recruiting</label>
-            <label><input type="checkbox" value="ACTIVE_NOT_RECRUITING"> Active, not recruiting</label>
-            <label><input type="checkbox" value="COMPLETED"> Completed</label>
-            <label><input type="checkbox" value="ENROLLING_BY_INVITATION"> Enrolling by invitation</label>
-            <label><input type="checkbox" value="NOT_YET_RECRUITING"> Not yet recruiting</label>
-            <label><input type="checkbox" value="SUSPENDED"> Suspended</label>
-            <label><input type="checkbox" value="TERMINATED"> Terminated</label>
-            <label><input type="checkbox" value="WITHDRAWN"> Withdrawn</label>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>Study Phase</label>
-          <label style="margin-bottom:10px;">
-            <input type="checkbox" id="phaseSelectAll" />
-            <span>Select all</span>
-          </label>
-          <div class="checkbox-group" id="phase-group">
-            <label><input type="checkbox" value="EARLY_PHASE1"> Early Phase 1</label>
-            <label><input type="checkbox" value="PHASE1"> Phase 1</label>
-            <label><input type="checkbox" value="PHASE2"> Phase 2</label>
-            <label><input type="checkbox" value="PHASE3"> Phase 3</label>
-            <label><input type="checkbox" value="PHASE4"> Phase 4</label>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="maxResults">Max Results</label>
-          <select id="maxResults">
-            <option value="100">100 studies</option>
-            <option value="250">250 studies</option>
-            <option value="500" selected>500 studies</option>
-            <option value="1000">1000 studies</option>
-            <option value="ALL">All results</option>
-          </select>
-        </div>
-      </div>
-    </div>
-
     <button class="btn" id="searchBtn" onclick="searchTrials()">Search Clinical Trials</button>
 
     <div id="loading" class="loading">
@@ -348,7 +324,8 @@
     <div class="info">
       <h3>Features</h3>
       <ul>
-        <li><b>Flexible Filtering:</b> Choose which organization types to include or exclude</li>
+        <li><b>Flexible Filtering:</b> Choose which organization types to include in results</li>
+        <li><b>Select All:</b> Quickly include all organization types with one click</li>
         <li><b>8 Organization Categories:</b> Companies, universities, hospitals, institutes, government, academic centers, foundations, non-profits</li>
         <li><b>Easy Search:</b> Enter keywords related to your therapeutic area</li>
         <li><b>Export Options:</b> CSV for PhantomBuster or detailed data for analysis</li>
@@ -370,6 +347,40 @@
       }
       
       card.classList.toggle('selected', checkbox.checked);
+      updateOrgTypesSelectAll();
+    });
+
+    // Select all organization types functionality
+    function updateOrgTypesSelectAll() {
+      const allBoxes = Array.from(document.querySelectorAll('#orgTypesGrid input[type="checkbox"]'));
+      const selectAll = document.getElementById('orgTypesSelectAll');
+      const checkedCount = allBoxes.filter(b => b.checked).length;
+      
+      if (checkedCount === 0) {
+        selectAll.checked = false;
+        selectAll.indeterminate = false;
+      } else if (checkedCount === allBoxes.length) {
+        selectAll.checked = true;
+        selectAll.indeterminate = false;
+      } else {
+        selectAll.checked = false;
+        selectAll.indeterminate = true;
+      }
+    }
+
+    document.getElementById('orgTypesSelectAll').addEventListener('change', (e) => {
+      const allBoxes = document.querySelectorAll('#orgTypesGrid input[type="checkbox"]');
+      const allCards = document.querySelectorAll('#orgTypesGrid .org-type-card');
+      
+      allBoxes.forEach(box => {
+        box.checked = e.target.checked;
+      });
+      
+      allCards.forEach(card => {
+        card.classList.toggle('selected', e.target.checked);
+      });
+      
+      e.target.indeterminate = false;
     });
 
     function showError(message) {
@@ -401,11 +412,6 @@
       return Array.from(checkboxes).map(cb => cb.value);
     }
 
-    function getFilterMode() {
-      const mode = document.querySelector('input[name="filterMode"]:checked');
-      return mode ? mode.value : 'include';
-    }
-
     async function searchTrials() {
       const keywords = document.getElementById('keywords').value.trim();
       if (!keywords) {
@@ -432,8 +438,7 @@
             statuses: getCheckedValues('status-group'),
             phases: getCheckedValues('phase-group'),
             maxResults: document.getElementById('maxResults').value,
-            organizationTypes: selectedTypes,
-            filterMode: getFilterMode()
+            organizationTypes: selectedTypes
           })
         });
 

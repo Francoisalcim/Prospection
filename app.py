@@ -49,7 +49,6 @@ def search():
         
         # NEW: Organization type filtering
         org_types = data.get('organizationTypes', ['company'])  # Default to companies only
-        filter_mode = data.get('filterMode', 'include')  # 'include' or 'exclude'
         
         # Handle "ALL" option
         if max_results_raw == 'ALL':
@@ -63,14 +62,10 @@ def search():
         print(f"   Phases: {phases}")
         print(f"   Max Results: {max_results}")
         print(f"   Organization Types: {org_types}")
-        print(f"   Filter Mode: {filter_mode}")
         
-        # Create new prospector instance with filtering
+        # Create new prospector instance with filtering (always include mode)
         global prospector
-        if filter_mode == 'include':
-            prospector = ClinicalTrialsProspector(include_types=org_types)
-        else:  # exclude mode
-            prospector = ClinicalTrialsProspector(exclude_types=org_types)
+        prospector = ClinicalTrialsProspector(include_types=org_types)
         
         # Fetch trials
         trials = prospector.fetch_trials(

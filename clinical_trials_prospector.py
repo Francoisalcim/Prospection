@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Clinical Trials Prospector - Python Backend
-Fetches data from ClinicalTrials.gov API v2 and filters out universities/institutes
+Clinical Trials Prospector - Python Backend with Flexible Filtering
+Allows users to select which organization types to include/exclude
 """
 
 import requests
@@ -19,37 +19,111 @@ class ClinicalTrialsProspector:
     
     BASE_URL = "https://clinicaltrials.gov/api/v2/studies"
     
-    # Keywords that indicate academic/research institutions (not commercial companies)
-    EXCLUDE_KEYWORDS = [
-        'university', 'universite', 'universität', 'universidad',
-        'institute', 'institut', 'instituto',
-        'college', 'school',
-        'hospital', 'medical center', 'health system',
-        'foundation', 'fundacion',
-        'research center', 'research centre',
-        'academy', 'academie'
-    ]
+    # Organization type categories with keywords
+    # Users can select which types to INCLUDE or EXCLUDE
+    ORGANIZATION_TYPES = {
+        'university': {
+            'keywords': ['university', 'universite', 'universität', 'universidad', 'universiti', 
+                        'college', 'école'],
+            'label': 'Universities & Colleges'
+        },
+        'institute': {
+            'keywords': ['institute', 'institut', 'instituto', 'research center', 'research centre'],
+            'label': 'Research Institutes'
+        },
+        'hospital': {
+            'keywords': ['hospital', 'medical center', 'medical centre', 'health system', 
+                        'health center', 'clinic', 'clinique', 'klinik'],
+            'label': 'Hospitals & Medical Centers'
+        },
+        'government': {
+            'keywords': ['national institutes', 'nih', 'ministry of health', 'department of health',
+                        'veterans affairs', 'va medical', 'public health', 'government'],
+            'label': 'Government Agencies'
+        },
+        'foundation': {
+            'keywords': ['foundation', 'fondation', 'fundacion', 'stichting', 'trust fund'],
+            'label': 'Foundations & Trusts'
+        },
+        'academic': {
+            'keywords': ['school of medicine', 'school of pharmacy', 'faculty of', 
+                        'academy', 'academie', 'academic'],
+            'label': 'Academic Medical Centers'
+        },
+        'nonprofit': {
+            'keywords': ['nonprofit', 'non-profit', 'charity', 'charitable', 'society', 
+                        'association', 'organization'],
+            'label': 'Non-Profit Organizations'
+        },
+        'company': {
+            # No keywords - these are identified by NOT matching other categories
+            'keywords': [],
+            'label': 'Commercial Companies (default)'
+        }
+    }
     
-    def __init__(self):
+    def __init__(self, include_types=None, exclude_types=None):
+        """
+        Initialize prospector with filtering options
+        
+        Args:
+            include_types: List of organization types to INCLUDE (None = all)
+            exclude_types: List of organization types to EXCLUDE (None = none)
+        
+        Example:
+            # Only include companies
+            prospector = ClinicalTrialsProspector(include_types=['company'])
+            
+            # Include everything except universities and hospitals
+            prospector = ClinicalTrialsProspector(exclude_types=['university', 'hospital'])
+        """
         self.trials_data = []
         self.companies_data = {}
+        self.include_types = include_types
+        self.exclude_types = exclude_types or []
         
-    def is_company(self, name: str) -> bool:
+    def get_organization_type(self, name: str) -> str:
         """
-        Check if the organization name is a company (not university/institute)
-        Returns False if any exclude keyword is found
+        Determine the organization type based on its name
+        
+        Returns:
+            Type key (e.g., 'university', 'hospital', 'company')
         """
         if not name:
-            return False
+            return 'unknown'
             
         name_lower = name.lower()
         
-        # Check for exclusion keywords
-        for keyword in self.EXCLUDE_KEYWORDS:
-            if keyword in name_lower:
-                return False
+        # Check each category (except 'company' which is default)
+        for org_type, info in self.ORGANIZATION_TYPES.items():
+            if org_type == 'company':
+                continue
+            
+            for keyword in info['keywords']:
+                if keyword in name_lower:
+                    return org_type
         
-        return True
+        # If no match, it's a company
+        return 'company'
+    
+    def should_include_organization(self, name: str) -> bool:
+        """
+        Check if organization should be included based on filtering rules
+        
+        Returns:
+            True if organization should be included, False otherwise
+        """
+        if not name:
+            return False
+        
+        org_type = self.get_organization_type(name)
+        
+        # If include_types is specified, only include those types
+        if self.include_types is not None:
+            return org_type in self.include_types
+        
+        # Otherwise, exclude specified types
+        return org_type not in self.exclude_types
     
     def build_query_term(self, keywords: List[str], phases: List[str] = None) -> str:
         """Build the query.term parameter for the API"""
@@ -122,6 +196,7 @@ class ClinicalTrialsProspector:
                 if not page_token:
                     break
                 
+                # Be polite to the API
                 time.sleep(0.2)
                 
             except requests.exceptions.RequestException as e:
@@ -133,15 +208,16 @@ class ClinicalTrialsProspector:
     
     def extract_companies(self, trials: List[Dict] = None) -> Dict:
         """
-        Extract company information from trials, filtering out universities/institutes
+        Extract organization information from trials with filtering
         
         Returns:
-            Dictionary with company names as keys and their details as values
+            Dictionary with organization names as keys and their details as values
         """
         if trials is None:
             trials = self.trials_data
         
         self.companies_data = {}
+        stats_by_type = defaultdict(int)
         excluded_count = 0
         
         for study in trials:
@@ -157,8 +233,11 @@ class ClinicalTrialsProspector:
                 lead_sponsor = sponsors_module.get('leadSponsor', {})
                 if lead_sponsor.get('name'):
                     name = lead_sponsor['name'].strip()
-                    if self.is_company(name):
-                        self._upsert_company(name, 'LEAD', nct_id)
+                    org_type = self.get_organization_type(name)
+                    stats_by_type[org_type] += 1
+                    
+                    if self.should_include_organization(name):
+                        self._upsert_company(name, 'LEAD', nct_id, org_type)
                     else:
                         excluded_count += 1
                 
@@ -167,8 +246,11 @@ class ClinicalTrialsProspector:
                 for collab in collaborators:
                     if collab.get('name'):
                         name = collab['name'].strip()
-                        if self.is_company(name):
-                            self._upsert_company(name, 'COLLAB', nct_id)
+                        org_type = self.get_organization_type(name)
+                        stats_by_type[org_type] += 1
+                        
+                        if self.should_include_organization(name):
+                            self._upsert_company(name, 'COLLAB', nct_id, org_type)
                         else:
                             excluded_count += 1
                             
@@ -176,16 +258,24 @@ class ClinicalTrialsProspector:
                 print("⚠️  Warning: Error processing study {}: {}".format(nct_id, e))
                 continue
         
-        print("🏢 Found {} companies".format(len(self.companies_data)))
-        print("🎓 Excluded {} universities/institutes/hospitals".format(excluded_count))
+        print("\n📊 Organization Type Breakdown:")
+        for org_type, count in sorted(stats_by_type.items(), key=lambda x: x[1], reverse=True):
+            label = self.ORGANIZATION_TYPES.get(org_type, {}).get('label', org_type)
+            status = "✓ INCLUDED" if (self.include_types is None or org_type in self.include_types) and org_type not in self.exclude_types else "✗ EXCLUDED"
+            print(f"  {label:40s}: {count:4d} {status}")
+        
+        print(f"\n✅ Included: {len(self.companies_data)} organizations")
+        print(f"❌ Excluded: {excluded_count} organizations")
         
         return self.companies_data
     
-    def _upsert_company(self, name: str, role: str, nct_id: str):
-        """Add or update company in the companies_data dictionary"""
+    def _upsert_company(self, name: str, role: str, nct_id: str, org_type: str = 'company'):
+        """Add or update organization in the companies_data dictionary"""
         if name not in self.companies_data:
             self.companies_data[name] = {
                 'name': name,
+                'org_type': org_type,
+                'org_type_label': self.ORGANIZATION_TYPES.get(org_type, {}).get('label', org_type),
                 'lead_count': 0,
                 'collab_count': 0,
                 'trial_count': 0,
@@ -203,7 +293,7 @@ class ClinicalTrialsProspector:
         if nct_id:
             company['nct_ids'].add(nct_id)
     
-    def export_to_csv(self, filename: str = None, target_role: str = None):
+    def export_to_csv(self, filename: str = None):
         """Export companies to CSV for PhantomBuster"""
         if not self.companies_data:
             print("❌ No data to export")
@@ -221,67 +311,34 @@ class ClinicalTrialsProspector:
         )
         
         with open(filename, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f, delimiter=";")
+            writer = csv.writer(f)
             
-            if target_role:
-                writer.writerow([
-                    'Company Name',
-                    'Role (ClinicalTrials)',
-                    'Target Role (LinkedIn)',
-                    'Lead Sponsor Mentions',
-                    'Collaborator Mentions',
-                    'Total Mentions',
-                    'LinkedIn People Search URL'
-                ])
-            else: 
-                writer.writerow([
-                    'Company Name',
-                    'Role (ClinicalTrials)',
-                    'Lead Sponsor Mentions',
-                    'Collaborator Mentions',
-                    'Total Mentions',
-                    'LinkedIn Company Search URL'
-                ])
+            # Header
+            writer.writerow([
+                'Company Name',
+                'Organization Type',
+                'Role',
+                'Lead Sponsor Mentions',
+                'Collaborator Mentions',
+                'Total Mentions',
+                'LinkedIn Company Search URL'
+            ])
             
             # Data rows
             for company in sorted_companies:
-                role_label = self._get_role_label(company)
-                company_name = company['name']
-
-                if target_role:
-                    # People search: keyword = "{role} {company}"
-                    # (this is the most reliable without Sales Navigator/company-id filters)
-                    keywords = f'{target_role} "{company_name}"'
-                    linkedin_url = (
-                        "https://www.linkedin.com/search/results/people/"
-                        f"?keywords={requests.utils.quote(keywords)}"
-                    )
-
-                    writer.writerow([
-                        company_name,
-                        role_label,
-                        target_role,
-                        company['lead_count'],
-                        company['collab_count'],
-                        company['trial_count'],
-                        linkedin_url
-                    ])
-                else:
-                    # Company search (your current behavior)
-                    linkedin_url = (
-                        "https://www.linkedin.com/search/results/companies/"
-                        f"?keywords={requests.utils.quote(company_name)}"
-                    )
-
-                    writer.writerow([
-                        company_name,
-                        role_label,
-                        company['lead_count'],
-                        company['collab_count'],
-                        company['trial_count'],
-                        linkedin_url
-                    ])
-
+                role = self._get_role_label(company)
+                linkedin_url = f"https://www.linkedin.com/search/results/companies/?keywords={requests.utils.quote(company['name'])}"
+                
+                writer.writerow([
+                    company['name'],
+                    company.get('org_type_label', 'Unknown'),
+                    role,
+                    company['lead_count'],
+                    company['collab_count'],
+                    company['trial_count'],
+                    linkedin_url
+                ])
+        
         print("✅ Exported to {}".format(filename))
         return filename
     
@@ -296,7 +353,7 @@ class ClinicalTrialsProspector:
             filename = f"ClinicalTrials_Detailed_{date}.csv"
         
         with open(filename, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f, delimiter=";")
+            writer = csv.writer(f)
             
             # Header
             writer.writerow([
@@ -305,6 +362,7 @@ class ClinicalTrialsProspector:
                 'Status',
                 'Phase',
                 'Lead Sponsor',
+                'Lead Sponsor Type',
                 'Collaborators',
                 'Conditions',
                 'Start Date',
@@ -322,6 +380,9 @@ class ClinicalTrialsProspector:
                                  ps.get('sponsorCollaboratorsModule', {}))
                 
                 nct_id = id_module.get('nctId', '')
+                lead_name = sponsors_module.get('leadSponsor', {}).get('name', '')
+                lead_type = self.get_organization_type(lead_name)
+                lead_type_label = self.ORGANIZATION_TYPES.get(lead_type, {}).get('label', lead_type)
                 
                 # Get collaborators
                 collaborators = sponsors_module.get('collaborators', [])
@@ -332,7 +393,8 @@ class ClinicalTrialsProspector:
                     id_module.get('briefTitle', ''),
                     status_module.get('overallStatus', ''),
                     ', '.join(design_module.get('phases', [])),
-                    sponsors_module.get('leadSponsor', {}).get('name', ''),
+                    lead_name,
+                    lead_type_label,
                     '; '.join(collab_names),
                     '; '.join(cond_module.get('conditions', [])),
                     status_module.get('startDateStruct', {}).get('date', ''),
@@ -357,15 +419,15 @@ class ClinicalTrialsProspector:
         print("📊 SUMMARY")
         print("="*60)
         print("Total Trials: {}".format(len(self.trials_data)))
-        print("Total Companies (filtered): {}".format(len(self.companies_data)))
+        print("Total Organizations (filtered): {}".format(len(self.companies_data)))
         
         sponsors = sum(1 for c in self.companies_data.values() if c['lead_count'] > 0)
         collaborators = sum(1 for c in self.companies_data.values() if c['collab_count'] > 0)
         
-        print("Companies as Lead Sponsor: {}".format(sponsors))
-        print("Companies as Collaborator: {}".format(collaborators))
+        print("Organizations as Lead Sponsor: {}".format(sponsors))
+        print("Organizations as Collaborator: {}".format(collaborators))
         
-        print("\n🏆 Top 10 Companies by Trial Count:")
+        print("\n🏆 Top 10 Organizations by Trial Count:")
         sorted_companies = sorted(
             self.companies_data.values(),
             key=lambda x: x['trial_count'],
@@ -374,38 +436,58 @@ class ClinicalTrialsProspector:
         
         for i, company in enumerate(sorted_companies, 1):
             role = self._get_role_label(company)
-            print("  {:2d}. {:50s} | {:3d} trials | {}".format(
-                i, company['name'][:50], company['trial_count'], role))
+            org_label = company.get('org_type_label', 'Unknown')
+            print("  {:2d}. {:40s} | {:3d} trials | {:20s} | {}".format(
+                i, company['name'][:40], company['trial_count'], org_label, role))
         
         print("="*60 + "\n")
 
 
 def main():
     """Example usage"""
-    prospector = ClinicalTrialsProspector()
     
-    # Example search parameters
-    keywords = ['diabetes', 'CAR-T therapy']
-    statuses = ['RECRUITING', 'ACTIVE_NOT_RECRUITING', 'COMPLETED']
-    phases = ['PHASE2', 'PHASE3']
+    # Example 1: Only include commercial companies (default behavior)
+    print("\n" + "="*60)
+    print("EXAMPLE 1: Only Commercial Companies")
+    print("="*60)
+    prospector = ClinicalTrialsProspector(include_types=['company'])
     
-    # Fetch trials
     trials = prospector.fetch_trials(
-        keywords=keywords,
-        statuses=statuses,
-        phases=phases,
-        max_results=500
+        keywords=['diabetes'],
+        statuses=['RECRUITING', 'ACTIVE_NOT_RECRUITING'],
+        max_results=100
     )
     
-    # Extract companies (automatically filters out universities/institutes)
     companies = prospector.extract_companies()
-    
-    # Print summary
     prospector.print_summary()
     
-    # Export results
-    prospector.export_to_csv()
-    prospector.export_detailed_to_csv()
+    # Example 2: Include companies AND universities
+    print("\n" + "="*60)
+    print("EXAMPLE 2: Companies + Universities")
+    print("="*60)
+    prospector2 = ClinicalTrialsProspector(include_types=['company', 'university'])
+    
+    trials2 = prospector2.fetch_trials(
+        keywords=['mRNA'],
+        max_results=100
+    )
+    
+    companies2 = prospector2.extract_companies()
+    prospector2.print_summary()
+    
+    # Example 3: Exclude only hospitals
+    print("\n" + "="*60)
+    print("EXAMPLE 3: Everything Except Hospitals")
+    print("="*60)
+    prospector3 = ClinicalTrialsProspector(exclude_types=['hospital'])
+    
+    trials3 = prospector3.fetch_trials(
+        keywords=['CAR-T'],
+        max_results=100
+    )
+    
+    companies3 = prospector3.extract_companies()
+    prospector3.print_summary()
 
 
 if __name__ == "__main__":
