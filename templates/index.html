@@ -11,7 +11,7 @@
       background: #f5f5f5; padding: 20px; color: #333;
     }
     .container {
-      max-width: 1000px; margin: 0 auto; background: white; border-radius: 8px;
+      max-width: 1200px; margin: 0 auto; background: white; border-radius: 8px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 30px;
     }
     h1 { color: #2563eb; margin-bottom: 10px; font-size: 2em; }
@@ -45,6 +45,62 @@
       display: flex; gap: 8px; align-items: center; font-weight: normal;
       cursor: pointer;
     }
+    
+    /* New: Organization types section */
+    .org-types-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 12px;
+      margin-top: 15px;
+    }
+    .org-type-card {
+      background: white;
+      border: 2px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .org-type-card:hover {
+      border-color: #2563eb;
+      box-shadow: 0 2px 4px rgba(37, 99, 235, 0.1);
+    }
+    .org-type-card.selected {
+      border-color: #2563eb;
+      background: #eff6ff;
+    }
+    .org-type-card input[type="checkbox"] {
+      width: auto;
+      margin-right: 8px;
+    }
+    .org-type-label {
+      font-weight: 500;
+      color: #1f2937;
+      font-size: 14px;
+    }
+    .org-type-count {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+    .filter-mode {
+      background: #fef3c7;
+      border: 1px solid #fbbf24;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 15px;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+    .filter-mode label {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 0;
+      cursor: pointer;
+    }
+    
     .btn {
       width: 100%; padding: 14px; background: #2563eb; color: white;
       border: none; border-radius: 6px; font-size: 16px; font-weight: 600;
@@ -92,6 +148,15 @@
     }
     .company-name { font-weight: 600; color: #1f2937; }
     .company-type { color: #6b7280; font-size: 13px; margin-top: 3px; }
+    .company-org-type {
+      display: inline-block;
+      background: #e0e7ff;
+      color: #3730a3;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      margin-top: 4px;
+    }
     .company-count { color: #2563eb; font-weight: bold; font-size: 1.3em; }
     .export-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
     .btn-secondary { background: #10b981; }
@@ -109,8 +174,8 @@
 <body>
   <div class="container">
     <h1>Clinical Trials Prospector</h1>
-    <p class="subtitle">Search for commercial sponsors and collaborators from ClinicalTrials.gov</p>
-    <div class="info-badge">✓ Automatically excludes universities, institutes, and hospitals</div>
+    <p class="subtitle">Search for sponsors and collaborators from ClinicalTrials.gov</p>
+    <div class="info-badge">✓ Flexible organization type filtering</div>
 
     <div class="section">
       <h3>Search Parameters</h3>
@@ -166,9 +231,95 @@
           </select>
         </div>
       </div>
-
-      <button class="btn" id="searchBtn" onclick="searchTrials()">Search Clinical Trials</button>
     </div>
+
+    <!-- NEW: Organization Type Filtering -->
+    <div class="section">
+      <h3>Organization Types to Include</h3>
+      <div class="hint" style="margin-bottom: 15px;">
+        Select which types of organizations you want to see in the results. By default, only commercial companies are included.
+      </div>
+
+      <div class="filter-mode">
+        <span style="font-weight: 500; color: #92400e;">Filter Mode:</span>
+        <label>
+          <input type="radio" name="filterMode" value="include" checked />
+          <span>Include selected types</span>
+        </label>
+        <label>
+          <input type="radio" name="filterMode" value="exclude" />
+          <span>Exclude selected types</span>
+        </label>
+      </div>
+
+      <div class="org-types-grid" id="orgTypesGrid">
+        <div class="org-type-card selected" data-type="company">
+          <label>
+            <input type="checkbox" value="company" checked />
+            <span class="org-type-label">Commercial Companies</span>
+          </label>
+          <div class="org-type-count">Biotech, pharma, CROs, etc.</div>
+        </div>
+
+        <div class="org-type-card" data-type="university">
+          <label>
+            <input type="checkbox" value="university" />
+            <span class="org-type-label">Universities & Colleges</span>
+          </label>
+          <div class="org-type-count">Academic institutions</div>
+        </div>
+
+        <div class="org-type-card" data-type="hospital">
+          <label>
+            <input type="checkbox" value="hospital" />
+            <span class="org-type-label">Hospitals & Medical Centers</span>
+          </label>
+          <div class="org-type-count">Healthcare facilities</div>
+        </div>
+
+        <div class="org-type-card" data-type="institute">
+          <label>
+            <input type="checkbox" value="institute" />
+            <span class="org-type-label">Research Institutes</span>
+          </label>
+          <div class="org-type-count">Independent research centers</div>
+        </div>
+
+        <div class="org-type-card" data-type="government">
+          <label>
+            <input type="checkbox" value="government" />
+            <span class="org-type-label">Government Agencies</span>
+          </label>
+          <div class="org-type-count">NIH, VA, public health</div>
+        </div>
+
+        <div class="org-type-card" data-type="academic">
+          <label>
+            <input type="checkbox" value="academic" />
+            <span class="org-type-label">Academic Medical Centers</span>
+          </label>
+          <div class="org-type-count">University hospitals</div>
+        </div>
+
+        <div class="org-type-card" data-type="foundation">
+          <label>
+            <input type="checkbox" value="foundation" />
+            <span class="org-type-label">Foundations & Trusts</span>
+          </label>
+          <div class="org-type-count">Charitable organizations</div>
+        </div>
+
+        <div class="org-type-card" data-type="nonprofit">
+          <label>
+            <input type="checkbox" value="nonprofit" />
+            <span class="org-type-label">Non-Profit Organizations</span>
+          </label>
+          <div class="org-type-count">Societies, associations</div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn" id="searchBtn" onclick="searchTrials()">Search Clinical Trials</button>
 
     <div id="loading" class="loading">
       <div class="spinner"></div>
@@ -184,41 +335,42 @@
       </div>
 
       <div class="companies-section">
-        <h3>Companies Found</h3>
+        <h3>Organizations Found</h3>
         <div class="companies-list" id="companiesList"></div>
       </div>
 
-      <div class="section" style="margin-top:15px;">
-        <h3>Export Options</h3>
-
-        <div class="form-group">
-          <label for="targetRole">Target role on LinkedIn (optional)</label>
-          <input id="targetRole" type="text" placeholder="e.g. CTO, Head of Clinical Operations, Medical Director" />
-          <div class="hint">If filled, the CSV will contain LinkedIn people search URLs for this role in each company.</div>
-        </div>
-
-        <div class="export-buttons">
-          <button class="btn btn-secondary" onclick="exportToCSV()">📄 Export to CSV (PhantomBuster)</button>
-          <button class="btn" onclick="exportDetailed()">📊 Export Detailed Data</button>
-        </div>
+      <div class="export-buttons">
+        <button class="btn btn-secondary" onclick="exportToCSV()">📄 Export to CSV (PhantomBuster)</button>
+        <button class="btn" onclick="exportDetailed()">📊 Export Detailed Data</button>
       </div>
-
     </div>
 
     <div class="info">
       <h3>Features</h3>
       <ul>
-        <li><b>Automatic Filtering:</b> Universities, institutes, hospitals, and research centers are automatically excluded</li>
+        <li><b>Flexible Filtering:</b> Choose which organization types to include or exclude</li>
+        <li><b>8 Organization Categories:</b> Companies, universities, hospitals, institutes, government, academic centers, foundations, non-profits</li>
         <li><b>Easy Search:</b> Enter keywords related to your therapeutic area</li>
-        <li><b>Flexible Filters:</b> Filter by study status and phase</li>
         <li><b>Export Options:</b> CSV for PhantomBuster or detailed data for analysis</li>
-        <li><b>Python Backend:</b> All processing happens in Python for easy customization</li>
       </ul>
     </div>
   </div>
 
   <script>
     let currentResults = null;
+
+    // Organization type card selection
+    document.getElementById('orgTypesGrid').addEventListener('click', (e) => {
+      const card = e.target.closest('.org-type-card');
+      if (!card) return;
+      
+      const checkbox = card.querySelector('input[type="checkbox"]');
+      if (e.target !== checkbox) {
+        checkbox.checked = !checkbox.checked;
+      }
+      
+      card.classList.toggle('selected', checkbox.checked);
+    });
 
     function showError(message) {
       const errorDiv = document.getElementById('error');
@@ -244,10 +396,26 @@
       return Array.from(checkboxes).map(cb => cb.value);
     }
 
+    function getSelectedOrgTypes() {
+      const checkboxes = document.querySelectorAll('#orgTypesGrid input[type="checkbox"]:checked');
+      return Array.from(checkboxes).map(cb => cb.value);
+    }
+
+    function getFilterMode() {
+      const mode = document.querySelector('input[name="filterMode"]:checked');
+      return mode ? mode.value : 'include';
+    }
+
     async function searchTrials() {
       const keywords = document.getElementById('keywords').value.trim();
       if (!keywords) {
         showError('Please enter at least one keyword.');
+        return;
+      }
+
+      const selectedTypes = getSelectedOrgTypes();
+      if (selectedTypes.length === 0) {
+        showError('Please select at least one organization type.');
         return;
       }
 
@@ -263,7 +431,9 @@
             keywords: keywords,
             statuses: getCheckedValues('status-group'),
             phases: getCheckedValues('phase-group'),
-            maxResults: document.getElementById('maxResults').value
+            maxResults: document.getElementById('maxResults').value,
+            organizationTypes: selectedTypes,
+            filterMode: getFilterMode()
           })
         });
 
@@ -296,7 +466,7 @@
         </div>
         <div class="stat-box">
           <div class="stat-number">${data.stats.uniqueCompanies}</div>
-          <div class="stat-label">Companies</div>
+          <div class="stat-label">Organizations</div>
         </div>
         <div class="stat-box">
           <div class="stat-number">${data.stats.sponsors}</div>
@@ -313,6 +483,7 @@
           <div>
             <div class="company-name">${c.name}</div>
             <div class="company-type">${c.role}</div>
+            <span class="company-org-type">${c.orgType || 'Company'}</span>
           </div>
           <div class="company-count">${c.trialCount}</div>
         </div>
