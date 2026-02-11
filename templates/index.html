@@ -174,64 +174,8 @@
 <body>
   <div class="container">
     <h1>Clinical Trials Prospector</h1>
-    <p class="subtitle">Search for sponsors and collaborators from ClinicalTrials.gov</p>
+    <p class="subtitle">Search clinical trials from ClinicalTrials.gov and extract the relevant inforamtion for your research</p>
     <div class="info-badge">✓ Flexible organization type filtering</div>
-
-    <div class="section">
-      <h3>Search Parameters</h3>
-
-      <div class="form-group">
-        <label for="keywords">Keywords *</label>
-        <textarea id="keywords" placeholder="Enter keywords separated by commas (e.g., diabetes, CAR-T therapy, cardiovascular)"></textarea>
-        <div class="hint">Tip: Use commas to add multiple keywords. Example: <b>mRNA, vaccine</b></div>
-      </div>
-
-      <div class="filters">
-        <div class="form-group">
-          <label>Study Status</label>
-          <label style="margin-bottom:10px;">
-            <input type="checkbox" id="statusSelectAll" />
-            <span>Select all</span>
-          </label>
-          <div class="checkbox-group" id="status-group">
-            <label><input type="checkbox" value="RECRUITING"> Recruiting</label>
-            <label><input type="checkbox" value="ACTIVE_NOT_RECRUITING"> Active, not recruiting</label>
-            <label><input type="checkbox" value="COMPLETED"> Completed</label>
-            <label><input type="checkbox" value="ENROLLING_BY_INVITATION"> Enrolling by invitation</label>
-            <label><input type="checkbox" value="NOT_YET_RECRUITING"> Not yet recruiting</label>
-            <label><input type="checkbox" value="SUSPENDED"> Suspended</label>
-            <label><input type="checkbox" value="TERMINATED"> Terminated</label>
-            <label><input type="checkbox" value="WITHDRAWN"> Withdrawn</label>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>Study Phase</label>
-          <label style="margin-bottom:10px;">
-            <input type="checkbox" id="phaseSelectAll" />
-            <span>Select all</span>
-          </label>
-          <div class="checkbox-group" id="phase-group">
-            <label><input type="checkbox" value="EARLY_PHASE1"> Early Phase 1</label>
-            <label><input type="checkbox" value="PHASE1"> Phase 1</label>
-            <label><input type="checkbox" value="PHASE2"> Phase 2</label>
-            <label><input type="checkbox" value="PHASE3"> Phase 3</label>
-            <label><input type="checkbox" value="PHASE4"> Phase 4</label>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="maxResults">Max Results</label>
-          <select id="maxResults">
-            <option value="100">100 studies</option>
-            <option value="250">250 studies</option>
-            <option value="500" selected>500 studies</option>
-            <option value="1000">1000 studies</option>
-            <option value="ALL">All results</option>
-          </select>
-        </div>
-      </div>
-    </div>
 
     <!-- NEW: Organization Type Filtering -->
     <div class="section">
@@ -315,6 +259,62 @@
             <span class="org-type-label">Non-Profit Organizations</span>
           </label>
           <div class="org-type-count">Societies, associations</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Search Parameters</h3>
+
+      <div class="form-group">
+        <label for="keywords">Keywords *</label>
+        <textarea id="keywords" placeholder="Enter keywords separated by commas (e.g., diabetes, CAR-T therapy, cardiovascular)"></textarea>
+        <div class="hint">Tip: Use commas to add multiple keywords. Example: <b>mRNA, vaccine</b></div>
+      </div>
+
+      <div class="filters">
+        <div class="form-group">
+          <label>Study Status</label>
+          <label style="margin-bottom:10px;">
+            <input type="checkbox" id="statusSelectAll" />
+            <span>Select all</span>
+          </label>
+          <div class="checkbox-group" id="status-group">
+            <label><input type="checkbox" value="RECRUITING"> Recruiting</label>
+            <label><input type="checkbox" value="ACTIVE_NOT_RECRUITING"> Active, not recruiting</label>
+            <label><input type="checkbox" value="COMPLETED"> Completed</label>
+            <label><input type="checkbox" value="ENROLLING_BY_INVITATION"> Enrolling by invitation</label>
+            <label><input type="checkbox" value="NOT_YET_RECRUITING"> Not yet recruiting</label>
+            <label><input type="checkbox" value="SUSPENDED"> Suspended</label>
+            <label><input type="checkbox" value="TERMINATED"> Terminated</label>
+            <label><input type="checkbox" value="WITHDRAWN"> Withdrawn</label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Study Phase</label>
+          <label style="margin-bottom:10px;">
+            <input type="checkbox" id="phaseSelectAll" />
+            <span>Select all</span>
+          </label>
+          <div class="checkbox-group" id="phase-group">
+            <label><input type="checkbox" value="EARLY_PHASE1"> Early Phase 1</label>
+            <label><input type="checkbox" value="PHASE1"> Phase 1</label>
+            <label><input type="checkbox" value="PHASE2"> Phase 2</label>
+            <label><input type="checkbox" value="PHASE3"> Phase 3</label>
+            <label><input type="checkbox" value="PHASE4"> Phase 4</label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="maxResults">Max Results</label>
+          <select id="maxResults">
+            <option value="100">100 studies</option>
+            <option value="250">250 studies</option>
+            <option value="500" selected>500 studies</option>
+            <option value="1000">1000 studies</option>
+            <option value="ALL">All results</option>
+          </select>
         </div>
       </div>
     </div>
