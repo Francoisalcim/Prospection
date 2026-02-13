@@ -518,7 +518,7 @@ class ClinicalTrialsProspector:
                 fieldnames.insert(0, field)
         
         with open(filename, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter=";")
             writer.writeheader()
             writer.writerows(self.extracted_data)
         
