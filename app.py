@@ -131,28 +131,35 @@ def search():
 
 @app.route('/api/export/csv', methods=['GET'])
 def export_csv():
-    """Export extracted data to CSV"""
+    """Export extracted data to Excel (XLSX)"""
     try:
         if not prospector.extracted_data:
             return jsonify({'error': 'No data to export. Please run a search first.'}), 400
         
-        filename = prospector.export_to_csv()
+        # Use XLSX export instead of CSV
+        filename = prospector.export_to_xlsx()
         
         if not filename or not os.path.exists(filename):
-            return jsonify({'error': 'Failed to generate CSV file'}), 500
+            return jsonify({'error': 'Failed to generate Excel file'}), 500
         
         return send_file(
             filename,
             as_attachment=True,
             download_name=os.path.basename(filename),
-            mimetype='text/csv'
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
         
     except Exception as e:
-        print(f"❌ Error in export_csv: {e}")
+        print(f"❌ Error in export: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/export/xlsx', methods=['GET'])
+def export_xlsx():
+    """Alternative endpoint for XLSX export"""
+    return export_csv()
 
 
 @app.route('/api/data-fields', methods=['GET'])

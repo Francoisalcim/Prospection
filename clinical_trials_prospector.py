@@ -492,8 +492,95 @@ class ClinicalTrialsProspector:
             'last_update': last_update
         }
     
+    def export_to_xlsx(self, filename: str = None) -> str:
+        """Export extracted data to Excel (XLSX)"""
+        try:
+            from openpyxl import Workbook
+            from openpyxl.styles import Font, PatternFill, Alignment
+            from openpyxl.utils import get_column_letter
+        except ImportError:
+            print("❌ openpyxl not installed. Run: pip install openpyxl")
+            return None
+        
+        if not self.extracted_data:
+            print("❌ No data to export")
+            return None
+        
+        if filename is None:
+            date = datetime.now().strftime('%Y-%m-%d')
+            filename = f"ClinicalTrials_Export_{date}.xlsx"
+        
+        # Get all unique keys from extracted data
+        all_keys = set()
+        for row in self.extracted_data:
+            all_keys.update(row.keys())
+        
+        # Sort keys for consistent column order
+        fieldnames = sorted(all_keys)
+        
+        # Move important fields to front
+        priority_fields = ['nct_id', 'title', 'status', 'lead_sponsor']
+        for field in reversed(priority_fields):
+            if field in fieldnames:
+                fieldnames.remove(field)
+                fieldnames.insert(0, field)
+        
+        # Create workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Clinical Trials Data"
+        
+        # Style for header
+        header_fill = PatternFill(start_color="2563EB", end_color="2563EB", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF")
+        header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        
+        # Write header
+        for col_idx, fieldname in enumerate(fieldnames, 1):
+            cell = ws.cell(row=1, column=col_idx)
+            cell.value = fieldname.replace('_', ' ').title()
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = header_alignment
+        
+        # Write data
+        for row_idx, record in enumerate(self.extracted_data, 2):
+            for col_idx, fieldname in enumerate(fieldnames, 1):
+                value = record.get(fieldname, '')
+                cell = ws.cell(row=row_idx, column=col_idx)
+                cell.value = value
+                
+                # Wrap text for long fields
+                if fieldname in ['title', 'eligibility_criteria', 'conditions', 'interventions']:
+                    cell.alignment = Alignment(wrap_text=True, vertical="top")
+        
+        # Auto-adjust column widths
+        for col_idx, fieldname in enumerate(fieldnames, 1):
+            column_letter = get_column_letter(col_idx)
+            
+            # Set specific widths for known columns
+            if fieldname == 'nct_id':
+                ws.column_dimensions[column_letter].width = 12
+            elif fieldname == 'title':
+                ws.column_dimensions[column_letter].width = 50
+            elif fieldname in ['eligibility_criteria', 'conditions', 'interventions', 'collaborators']:
+                ws.column_dimensions[column_letter].width = 40
+            elif fieldname in ['lead_sponsor', 'principal_investigators', 'facilities']:
+                ws.column_dimensions[column_letter].width = 30
+            else:
+                ws.column_dimensions[column_letter].width = 15
+        
+        # Freeze header row
+        ws.freeze_panes = "A2"
+        
+        # Save workbook
+        wb.save(filename)
+        
+        print("✅ Exported to {}".format(filename))
+        return filename
+    
     def export_to_csv(self, filename: str = None) -> str:
-        """Export extracted data to CSV"""
+        """Export extracted data to CSV (legacy method)"""
         if not self.extracted_data:
             print("❌ No data to export")
             return None
