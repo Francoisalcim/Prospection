@@ -21,8 +21,9 @@ except ImportError:
 app = Flask(__name__)
 CORS(app)
 
-# Store the prospector instance
+# Store the prospector instance and column order
 prospector = ClinicalTrialsProspector()
+custom_column_order = []
 
 
 @app.route('/')
@@ -53,6 +54,9 @@ def search():
         # NEW: Data extraction options
         data_extractions = data.get('dataExtractions', ['sponsors'])
         
+        # NEW: Custom column order
+        column_order = data.get('columnOrder', [])
+        
         # Handle "ALL" option
         if max_results_raw == 'ALL':
             max_results = 10000
@@ -66,6 +70,11 @@ def search():
         print(f"   Max Results: {max_results}")
         print(f"   Organization Types: {org_types}")
         print(f"   Data Extractions: {data_extractions}")
+        print(f"   Column Order: {column_order}")
+        
+        # Store column order globally for export
+        global custom_column_order
+        custom_column_order = column_order
         
         # Create new prospector instance with filtering and extraction options
         global prospector
@@ -131,13 +140,14 @@ def search():
 
 @app.route('/api/export/csv', methods=['GET'])
 def export_csv():
-    """Export extracted data to Excel (XLSX)"""
+    """Export extracted data to Excel (XLSX) with custom column order"""
     try:
         if not prospector.extracted_data:
             return jsonify({'error': 'No data to export. Please run a search first.'}), 400
         
-        # Use XLSX export instead of CSV
-        filename = prospector.export_to_xlsx()
+        # Use XLSX export with custom column order
+        global custom_column_order
+        filename = prospector.export_to_xlsx(column_order=custom_column_order)
         
         if not filename or not os.path.exists(filename):
             return jsonify({'error': 'Failed to generate Excel file'}), 500
@@ -158,7 +168,7 @@ def export_csv():
 
 @app.route('/api/export/xlsx', methods=['GET'])
 def export_xlsx():
-    """Alternative endpoint for XLSX export"""
+    """Alternative endpoint for XLSX export with custom column order"""
     return export_csv()
 
 

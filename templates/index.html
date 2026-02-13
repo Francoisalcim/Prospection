@@ -157,86 +157,8 @@
 <body>
   <div class="container">
     <h1>Clinical Trials Prospector</h1>
-    <p class="subtitle">Searching tool connected to ClinicalTrials.gov</p>
-
-    <!-- NEW: Organization Type Filtering -->
-    <div class="section">
-      <h3>Organization Types to Include</h3>
-      <div class="hint" style="margin-bottom: 15px;">
-        Select which types of organizations you want to see in the results. Check multiple types or use "Select All".
-      </div>
-
-      <label style="margin-bottom:15px; display: flex; gap: 8px; align-items: center; cursor: pointer;">
-        <input type="checkbox" id="orgTypesSelectAll" />
-        <span style="font-weight: 600; color: #1f2937;">Select All Organization Types</span>
-      </label>
-
-      <div class="org-types-grid" id="orgTypesGrid">
-        <div class="org-type-card selected" data-type="company">
-          <label>
-            <input type="checkbox" value="company" checked />
-            <span class="org-type-label">Commercial Companies</span>
-          </label>
-          <div class="org-type-count">Biotech, pharma, CROs, etc.</div>
-        </div>
-
-        <div class="org-type-card" data-type="university">
-          <label>
-            <input type="checkbox" value="university" />
-            <span class="org-type-label">Universities & Colleges</span>
-          </label>
-          <div class="org-type-count">Academic institutions</div>
-        </div>
-
-        <div class="org-type-card" data-type="hospital">
-          <label>
-            <input type="checkbox" value="hospital" />
-            <span class="org-type-label">Hospitals & Medical Centers</span>
-          </label>
-          <div class="org-type-count">Healthcare facilities</div>
-        </div>
-
-        <div class="org-type-card" data-type="institute">
-          <label>
-            <input type="checkbox" value="institute" />
-            <span class="org-type-label">Research Institutes</span>
-          </label>
-          <div class="org-type-count">Independent research centers</div>
-        </div>
-
-        <div class="org-type-card" data-type="government">
-          <label>
-            <input type="checkbox" value="government" />
-            <span class="org-type-label">Government Agencies</span>
-          </label>
-          <div class="org-type-count">NIH, VA, public health</div>
-        </div>
-
-        <div class="org-type-card" data-type="academic">
-          <label>
-            <input type="checkbox" value="academic" />
-            <span class="org-type-label">Academic Medical Centers</span>
-          </label>
-          <div class="org-type-count">University hospitals</div>
-        </div>
-
-        <div class="org-type-card" data-type="foundation">
-          <label>
-            <input type="checkbox" value="foundation" />
-            <span class="org-type-label">Foundations & Trusts</span>
-          </label>
-          <div class="org-type-count">Charitable organizations</div>
-        </div>
-
-        <div class="org-type-card" data-type="nonprofit">
-          <label>
-            <input type="checkbox" value="nonprofit" />
-            <span class="org-type-label">Non-Profit Organizations</span>
-          </label>
-          <div class="org-type-count">Societies, associations</div>
-        </div>
-      </div>
-    </div>
+    <p class="subtitle">Search for sponsors and collaborators from ClinicalTrials.gov</p>
+    <div class="info-badge">✓ Flexible organization type filtering</div>
 
     <div class="section">
       <h3>Search Parameters</h3>
@@ -389,6 +311,85 @@
       </div>
     </div>
 
+    <!-- NEW: Organization Type Filtering -->
+    <div class="section">
+      <h3>Organization Types to Include</h3>
+      <div class="hint" style="margin-bottom: 15px;">
+        Select which types of organizations you want to see in the results. Check multiple types or use "Select All".
+      </div>
+
+      <label style="margin-bottom:15px; display: flex; gap: 8px; align-items: center; cursor: pointer;">
+        <input type="checkbox" id="orgTypesSelectAll" />
+        <span style="font-weight: 600; color: #1f2937;">Select All Organization Types</span>
+      </label>
+
+      <div class="org-types-grid" id="orgTypesGrid">
+        <div class="org-type-card selected" data-type="company">
+          <label>
+            <input type="checkbox" value="company" checked />
+            <span class="org-type-label">Commercial Companies</span>
+          </label>
+          <div class="org-type-count">Biotech, pharma, CROs, etc.</div>
+        </div>
+
+        <div class="org-type-card" data-type="university">
+          <label>
+            <input type="checkbox" value="university" />
+            <span class="org-type-label">Universities & Colleges</span>
+          </label>
+          <div class="org-type-count">Academic institutions</div>
+        </div>
+
+        <div class="org-type-card" data-type="hospital">
+          <label>
+            <input type="checkbox" value="hospital" />
+            <span class="org-type-label">Hospitals & Medical Centers</span>
+          </label>
+          <div class="org-type-count">Healthcare facilities</div>
+        </div>
+
+        <div class="org-type-card" data-type="institute">
+          <label>
+            <input type="checkbox" value="institute" />
+            <span class="org-type-label">Research Institutes</span>
+          </label>
+          <div class="org-type-count">Independent research centers</div>
+        </div>
+
+        <div class="org-type-card" data-type="government">
+          <label>
+            <input type="checkbox" value="government" />
+            <span class="org-type-label">Government Agencies</span>
+          </label>
+          <div class="org-type-count">NIH, VA, public health</div>
+        </div>
+
+        <div class="org-type-card" data-type="academic">
+          <label>
+            <input type="checkbox" value="academic" />
+            <span class="org-type-label">Academic Medical Centers</span>
+          </label>
+          <div class="org-type-count">University hospitals</div>
+        </div>
+
+        <div class="org-type-card" data-type="foundation">
+          <label>
+            <input type="checkbox" value="foundation" />
+            <span class="org-type-label">Foundations & Trusts</span>
+          </label>
+          <div class="org-type-count">Charitable organizations</div>
+        </div>
+
+        <div class="org-type-card" data-type="nonprofit">
+          <label>
+            <input type="checkbox" value="nonprofit" />
+            <span class="org-type-label">Non-Profit Organizations</span>
+          </label>
+          <div class="org-type-count">Societies, associations</div>
+        </div>
+      </div>
+    </div>
+
     <button class="btn" id="searchBtn" onclick="searchTrials()">Search Clinical Trials</button>
 
     <div id="loading" class="loading">
@@ -410,7 +411,7 @@
       </div>
 
       <div class="export-buttons">
-        <button class="btn btn-secondary" onclick="exportToCSV()">📄 Export Complete Dataset to CSV</button>
+        <button class="btn btn-secondary" onclick="exportToCSV()">📊 Export to Excel (XLSX)</button>
       </div>
     </div>
 

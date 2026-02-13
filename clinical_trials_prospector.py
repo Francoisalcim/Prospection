@@ -492,8 +492,8 @@ class ClinicalTrialsProspector:
             'last_update': last_update
         }
     
-    def export_to_xlsx(self, filename: str = None) -> str:
-        """Export extracted data to Excel (XLSX)"""
+    def export_to_xlsx(self, filename: str = None, column_order: List[str] = None) -> str:
+        """Export extracted data to Excel (XLSX) with custom column order"""
         try:
             from openpyxl import Workbook
             from openpyxl.styles import Font, PatternFill, Alignment
@@ -515,15 +515,21 @@ class ClinicalTrialsProspector:
         for row in self.extracted_data:
             all_keys.update(row.keys())
         
-        # Sort keys for consistent column order
-        fieldnames = sorted(all_keys)
-        
-        # Move important fields to front
-        priority_fields = ['nct_id', 'title', 'status', 'lead_sponsor']
-        for field in reversed(priority_fields):
-            if field in fieldnames:
-                fieldnames.remove(field)
-                fieldnames.insert(0, field)
+        # Use custom column order if provided, otherwise use default
+        if column_order:
+            # Filter to only include columns that actually exist in the data
+            fieldnames = [col for col in column_order if col in all_keys]
+            # Add any remaining columns that weren't in the custom order
+            remaining = [col for col in sorted(all_keys) if col not in fieldnames]
+            fieldnames.extend(remaining)
+        else:
+            # Default behavior: sort keys and prioritize important fields
+            fieldnames = sorted(all_keys)
+            priority_fields = ['nct_id', 'title', 'status', 'lead_sponsor']
+            for field in reversed(priority_fields):
+                if field in fieldnames:
+                    fieldnames.remove(field)
+                    fieldnames.insert(0, field)
         
         # Create workbook
         wb = Workbook()
@@ -576,7 +582,7 @@ class ClinicalTrialsProspector:
         # Save workbook
         wb.save(filename)
         
-        print("✅ Exported to {}".format(filename))
+        print("✅ Exported to {} with {} columns in custom order".format(filename, len(fieldnames)))
         return filename
     
     def export_to_csv(self, filename: str = None) -> str:
@@ -605,7 +611,7 @@ class ClinicalTrialsProspector:
                 fieldnames.insert(0, field)
         
         with open(filename, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter=";")
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(self.extracted_data)
         
