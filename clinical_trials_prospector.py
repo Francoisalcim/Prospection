@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
 Clinical Trials Prospector - V3 with Flexible Data Extraction
-Allows users to select which data fields they want to extract
+Allows users to specify AND/OR operators directly in keyword search
 """
 
 import requests
 import json
 import csv
 import time
-from typing import List, Dict, Set, Optional
+from typing import List, Dict, Set, Optional, Tuple
 from collections import defaultdict
 from datetime import datetime
 import re
@@ -157,22 +157,108 @@ class ClinicalTrialsProspector:
         
         return org_type not in self.exclude_types
     
-    def build_query_term(self, keywords: List[str], phases: List[str] = None) -> str:
-        """Build the query.term parameter for the API"""
-        if len(keywords) == 1:
-            keyword_part = keywords[0]
-        else:
+    def parse_keyword_expression(self, keyword_string: str) -> str:
+        """
+        Parse keyword string with AND/OR operators into API query format
+        
+        Examples:
+            "diabetes AND insulin" -> ("diabetes" AND "insulin")
+            "diabetes OR insulin" -> ("diabetes" OR "insulin")
+            "diabetes AND (insulin OR treatment)" -> ("diabetes" AND ("insulin" OR "treatment"))
+            "diabetes, insulin" -> ("diabetes" OR "insulin")  [comma = OR]
+        
+        Args:
+            keyword_string: User input with keywords and AND/OR operators
+            
+        Returns:
+            Formatted query string for API
+        """
+        # Clean up the input
+        keyword_string = keyword_string.strip()
+        
+        if not keyword_string:
+            return ""
+        
+        # Check if user is using AND/OR operators
+        has_and = ' AND ' in keyword_string.upper()
+        has_or = ' OR ' in keyword_string.upper()
+        
+        # If no operators, treat commas as OR
+        if not has_and and not has_or:
+            # Split by comma and treat as OR
+            keywords = [k.strip() for k in keyword_string.split(',') if k.strip()]
+            if len(keywords) == 1:
+                return keywords[0]
             quoted_keywords = ['"{}"'.format(k) for k in keywords]
-            keyword_part = "({})".format(' OR '.join(quoted_keywords))
+            return "({})".format(' OR '.join(quoted_keywords))
+        
+        # User is using AND/OR operators - parse the expression
+        # Replace operators with standardized versions (case insensitive)
+        expression = keyword_string
+        
+        # Make operators case-insensitive by using regex
+        expression = re.sub(r'\bAND\b', 'AND', expression, flags=re.IGNORECASE)
+        expression = re.sub(r'\bOR\b', 'OR', expression, flags=re.IGNORECASE)
+        
+        # Split by AND and OR while preserving the operators
+        tokens = re.split(r'\s+(AND|OR)\s+', expression)
+        
+        # Quote individual keywords that aren't operators or parentheses
+        processed_tokens = []
+        for token in tokens:
+            token = token.strip()
+            if token in ['AND', 'OR']:
+                processed_tokens.append(token)
+            elif token.startswith('(') and token.endswith(')'):
+                # Handle parentheses - process the content inside
+                inner = token[1:-1].strip()
+                inner_tokens = re.split(r'\s+(AND|OR)\s+', inner)
+                inner_processed = []
+                for inner_token in inner_tokens:
+                    inner_token = inner_token.strip()
+                    if inner_token in ['AND', 'OR']:
+                        inner_processed.append(inner_token)
+                    elif inner_token and not inner_token.startswith('"'):
+                        inner_processed.append('"{}"'.format(inner_token))
+                    else:
+                        inner_processed.append(inner_token)
+                processed_tokens.append('({})'.format(' '.join(inner_processed)))
+            elif token and not token.startswith('"'):
+                # Quote unquoted keywords
+                processed_tokens.append('"{}"'.format(token))
+            else:
+                processed_tokens.append(token)
+        
+        result = ' '.join(processed_tokens)
+        
+        # Wrap in outer parentheses if there are multiple terms
+        if ' AND ' in result or ' OR ' in result:
+            result = '({})'.format(result)
+        
+        return result
+    
+    def build_query_term(self, keywords: str, phases: List[str] = None) -> str:
+        """
+        Build the query.term parameter for the API
+        
+        Args:
+            keywords: Keyword string (can include AND/OR operators)
+            phases: Optional list of phase filters
+            
+        Returns:
+            Query string formatted for ClinicalTrials.gov API
+        """
+        keyword_part = self.parse_keyword_expression(keywords)
         
         if not phases:
             return keyword_part
         
+        # Add phase filtering if specified
         phase_part = "AREA[Phase]({})".format(' OR '.join(phases))
         return "{} AND {}".format(keyword_part, phase_part)
     
     def fetch_trials(self, 
-                     keywords: List[str],
+                     keywords: str,
                      statuses: List[str] = None,
                      phases: List[str] = None,
                      max_results: int = 500) -> List[Dict]:
@@ -620,31 +706,46 @@ class ClinicalTrialsProspector:
 
 
 def main():
-    """Example usage with different extraction options"""
+    """Example usage with keyword expression parsing"""
     
-    # Example 1: Extract only sponsors (default)
+    # Example 1: Simple OR search (comma-separated)
     print("\n" + "="*70)
-    print("EXAMPLE 1: Sponsors Only")
+    print("EXAMPLE 1: Simple OR search (comma-separated)")
     print("="*70)
     prospector = ClinicalTrialsProspector(
         include_types=['company'],
         extraction_options=['sponsors']
     )
-    trials = prospector.fetch_trials(keywords=['diabetes'], max_results=50)
+    trials = prospector.fetch_trials(keywords='diabetes, insulin', max_results=50)
     data = prospector.extract_data()
-    print(f"Extracted {len(data)} records with sponsor data")
+    print(f"Extracted {len(data)} records")
     
-    # Example 2: Extract multiple data fields
+    # Example 2: AND search
     print("\n" + "="*70)
-    print("EXAMPLE 2: Comprehensive Extraction")
+    print("EXAMPLE 2: AND search - both keywords required")
     print("="*70)
     prospector2 = ClinicalTrialsProspector(
         include_types=['company', 'university'],
-        extraction_options=['sponsors', 'investigators', 'locations', 'interventions', 'design']
+        extraction_options=['sponsors', 'investigators']
     )
-    trials2 = prospector2.fetch_trials(keywords=['mRNA'], max_results=50)
+    trials2 = prospector2.fetch_trials(keywords='cancer AND immunotherapy', max_results=50)
     data2 = prospector2.extract_data()
-    prospector2.export_to_csv('comprehensive_export.csv')
+    print(f"Extracted {len(data2)} records")
+    
+    # Example 3: Complex expression with parentheses
+    print("\n" + "="*70)
+    print("EXAMPLE 3: Complex expression")
+    print("="*70)
+    prospector3 = ClinicalTrialsProspector(
+        include_types=['company'],
+        extraction_options=['sponsors', 'design']
+    )
+    trials3 = prospector3.fetch_trials(
+        keywords='diabetes AND (insulin OR metformin)', 
+        max_results=50
+    )
+    data3 = prospector3.extract_data()
+    prospector3.export_to_csv('complex_search.csv')
 
 
 if __name__ == "__main__":

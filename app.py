@@ -2,6 +2,7 @@
 """
 Flask web server for Clinical Trials Prospector v3
 With flexible organization type filtering AND data extraction options
+Users can specify AND/OR operators directly in the keyword search
 """
 
 from flask import Flask, render_template, request, jsonify, send_file
@@ -38,12 +39,11 @@ def search():
     try:
         data = request.json
         
-        # Parse keywords
+        # Parse keywords (now includes AND/OR operators)
         keywords_raw = data.get('keywords', '').strip()
         if not keywords_raw:
             return jsonify({'error': 'Please provide at least one keyword'}), 400
         
-        keywords = [k.strip() for k in keywords_raw.split(',') if k.strip()]
         statuses = data.get('statuses', [])
         phases = data.get('phases', [])
         max_results_raw = data.get('maxResults', '500')
@@ -51,10 +51,10 @@ def search():
         # Organization type filtering
         org_types = data.get('organizationTypes', ['company'])
         
-        # NEW: Data extraction options
+        # Data extraction options
         data_extractions = data.get('dataExtractions', ['sponsors'])
         
-        # NEW: Custom column order
+        # Custom column order
         column_order = data.get('columnOrder', [])
         
         # Handle "ALL" option
@@ -64,7 +64,7 @@ def search():
             max_results = int(max_results_raw)
         
         print(f"🔍 Search request:")
-        print(f"   Keywords: {keywords}")
+        print(f"   Keywords: {keywords_raw}")
         print(f"   Statuses: {statuses}")
         print(f"   Phases: {phases}")
         print(f"   Max Results: {max_results}")
@@ -83,9 +83,9 @@ def search():
             extraction_options=data_extractions
         )
         
-        # Fetch trials
+        # Fetch trials - keywords_raw now contains AND/OR operators
         trials = prospector.fetch_trials(
-            keywords=keywords,
+            keywords=keywords_raw,  # Pass the raw string with AND/OR operators
             statuses=statuses if statuses else None,
             phases=phases if phases else None,
             max_results=max_results
@@ -225,6 +225,7 @@ if __name__ == '__main__':
         print("💻 Running in DEVELOPMENT mode (Local)")
         print(f"📱 Open your browser at: http://localhost:{port}")
         print("📁 Make sure index.html is in the 'templates' folder")
+    print("✨ NEW: Specify AND/OR operators directly in keywords")
     print("✨ NEW: Flexible data extraction (10 data categories)")
     print("✨ Organization type filtering (8 categories)")
     print("🛑 Press Ctrl+C to stop")
