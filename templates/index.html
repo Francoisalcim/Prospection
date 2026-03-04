@@ -36,6 +36,40 @@
       outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
     }
     .hint { font-size: 13px; color: #6b7280; margin-top: 5px; }
+    
+    /* NEW: Examples box */
+    .examples-box {
+      background: #eff6ff;
+      border: 2px solid #bfdbfe;
+      border-radius: 6px;
+      padding: 15px;
+      margin-top: 12px;
+    }
+    .examples-box .title {
+      font-weight: 600;
+      color: #1e40af;
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+    .example-item {
+      background: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-family: 'Courier New', monospace;
+      color: #1f2937;
+    }
+    .example-item:last-child {
+      margin-bottom: 0;
+    }
+    .example-desc {
+      color: #6b7280;
+      font-size: 12px;
+      margin-top: 3px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    }
+    
     .filters {
       display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 15px; margin-top: 15px;
@@ -356,7 +390,7 @@
   <div class="container">
     <h1>Clinical Trials Prospector</h1>
     <p class="subtitle">Search and export clinical trials data with custom Excel structure</p>
-    <div class="info-badge">✓ Drag & Drop Excel Column Builder</div>
+    <div class="info-badge">✓ Drag & Drop Excel Column Builder + AND/OR Search Logic</div>
 
     <!-- Data Extraction Options (Collapsible) -->
     <div class="toggle-section" onclick="toggleSection('dataExtractSection')">
@@ -463,8 +497,28 @@
 
       <div class="form-group">
         <label for="keywords">Keywords *</label>
-        <textarea id="keywords" placeholder="Enter keywords separated by commas (e.g., diabetes, CAR-T therapy, cardiovascular)"></textarea>
-        <div class="hint">Tip: Use commas to add multiple keywords. Example: <b>mRNA, vaccine</b></div>
+        <textarea id="keywords" placeholder="Enter keywords with AND/OR operators or separate with commas"></textarea>
+        
+        <!-- NEW: Examples Box -->
+        <div class="examples-box">
+          <div class="title">💡 Examples - How to use AND/OR:</div>
+          <div class="example-item">
+            diabetes, insulin, treatment
+            <div class="example-desc">→ Finds trials with ANY of these keywords (OR logic)</div>
+          </div>
+          <div class="example-item">
+            diabetes AND insulin
+            <div class="example-desc">→ Finds trials with BOTH keywords (AND logic)</div>
+          </div>
+          <div class="example-item">
+            cancer AND (immunotherapy OR chemotherapy)
+            <div class="example-desc">→ Finds cancer trials using either treatment</div>
+          </div>
+          <div class="example-item">
+            mRNA AND vaccine AND (COVID OR influenza)
+            <div class="example-desc">→ Complex: mRNA vaccines for either disease</div>
+          </div>
+        </div>
       </div>
 
       <div class="filters">
@@ -598,7 +652,7 @@
       </div>
     </div>
 
-    <!-- NEW: Excel Column Builder -->
+    <!-- Excel Column Builder -->
     <div class="section">
       <h3>📊 Customize Excel Export Structure (Drag & Drop)</h3>
       <div class="hint" style="margin-bottom: 15px;">
@@ -670,6 +724,7 @@
     <div class="info">
       <h3>Features</h3>
       <ul>
+        <li><b>AND/OR Search Logic:</b> Type AND/OR operators directly in keywords (e.g., "diabetes AND insulin")</li>
         <li><b>Drag & Drop Column Builder:</b> Customize your Excel export structure by dragging columns</li>
         <li><b>Column Ordering:</b> Reorder columns by dragging them up or down in the right panel</li>
         <li><b>Flexible Data Extraction:</b> Choose exactly which data fields you need (10 categories)</li>
@@ -680,55 +735,35 @@
   </div>
 
   <script>
-    /**
-     * Column Builder - Drag and Drop functionality
-     * Integrated directly to avoid loading issues
-     */
-
-    // Column definitions with all possible fields
+    // Column Builder JavaScript (same as before)
     const COLUMN_DEFINITIONS = {
-      // Basic Info
       nct_id: { name: 'NCT ID', desc: 'Trial identifier', category: 'basic' },
       title: { name: 'Study Title', desc: 'Brief title of the study', category: 'basic' },
       status: { name: 'Status', desc: 'Overall study status', category: 'basic' },
-      
-      // Sponsors (always available)
       lead_sponsor: { name: 'Lead Sponsor', desc: 'Primary organization', category: 'sponsors', requires: 'sponsors' },
       lead_sponsor_type: { name: 'Sponsor Type', desc: 'Organization category', category: 'sponsors', requires: 'sponsors' },
       lead_sponsor_class: { name: 'Sponsor Class', desc: 'Industry/NIH/Other', category: 'sponsors', requires: 'sponsors' },
       collaborators: { name: 'Collaborators', desc: 'All collaborating organizations', category: 'sponsors', requires: 'sponsors' },
       collaborator_count: { name: 'Collaborator Count', desc: 'Number of collaborators', category: 'sponsors', requires: 'sponsors' },
-      
-      // Investigators
       principal_investigators: { name: 'Principal Investigators', desc: 'Lead researcher names', category: 'investigators', requires: 'investigators' },
       pi_affiliations: { name: 'PI Affiliations', desc: 'PI institutions', category: 'investigators', requires: 'investigators' },
       pi_count: { name: 'PI Count', desc: 'Number of PIs', category: 'investigators', requires: 'investigators' },
-      
-      // Locations
       facilities: { name: 'Facilities', desc: 'Hospital/clinic names', category: 'locations', requires: 'locations' },
       cities: { name: 'Cities', desc: 'Study locations', category: 'locations', requires: 'locations' },
       countries: { name: 'Countries', desc: 'Countries', category: 'locations', requires: 'locations' },
       location_count: { name: 'Location Count', desc: 'Number of sites', category: 'locations', requires: 'locations' },
-      
-      // Interventions
       drugs: { name: 'Drugs', desc: 'Medications tested', category: 'interventions', requires: 'interventions' },
       devices: { name: 'Devices', desc: 'Medical devices', category: 'interventions', requires: 'interventions' },
       procedures: { name: 'Procedures', desc: 'Surgical procedures', category: 'interventions', requires: 'interventions' },
       other_interventions: { name: 'Other Interventions', desc: 'Other types', category: 'interventions', requires: 'interventions' },
       intervention_count: { name: 'Intervention Count', desc: 'Total interventions', category: 'interventions', requires: 'interventions' },
-      
-      // Conditions
       conditions: { name: 'Conditions', desc: 'Diseases studied', category: 'conditions', requires: 'conditions' },
       keywords: { name: 'Keywords', desc: 'Study keywords', category: 'conditions', requires: 'conditions' },
       condition_count: { name: 'Condition Count', desc: 'Number of conditions', category: 'conditions', requires: 'conditions' },
-      
-      // Outcomes
       primary_outcomes: { name: 'Primary Outcomes', desc: 'Main endpoints', category: 'outcomes', requires: 'outcomes' },
       secondary_outcomes: { name: 'Secondary Outcomes', desc: 'Additional endpoints', category: 'outcomes', requires: 'outcomes' },
       primary_outcome_count: { name: 'Primary Outcome Count', desc: 'Number of primary', category: 'outcomes', requires: 'outcomes' },
       secondary_outcome_count: { name: 'Secondary Outcome Count', desc: 'Number of secondary', category: 'outcomes', requires: 'outcomes' },
-      
-      // Design
       phase: { name: 'Phase', desc: 'Study phase', category: 'design', requires: 'design' },
       study_type: { name: 'Study Type', desc: 'Interventional/Observational', category: 'design', requires: 'design' },
       enrollment: { name: 'Enrollment', desc: 'Number of participants', category: 'design', requires: 'design' },
@@ -736,140 +771,77 @@
       intervention_model: { name: 'Intervention Model', desc: 'Parallel/Crossover/etc', category: 'design', requires: 'design' },
       primary_purpose: { name: 'Primary Purpose', desc: 'Treatment/Prevention/etc', category: 'design', requires: 'design' },
       masking: { name: 'Masking', desc: 'Blinding details', category: 'design', requires: 'design' },
-      
-      // Eligibility
       min_age: { name: 'Min Age', desc: 'Minimum age', category: 'eligibility', requires: 'eligibility' },
       max_age: { name: 'Max Age', desc: 'Maximum age', category: 'eligibility', requires: 'eligibility' },
       sex: { name: 'Sex', desc: 'Gender requirements', category: 'eligibility', requires: 'eligibility' },
       healthy_volunteers: { name: 'Healthy Volunteers', desc: 'Accepts healthy volunteers', category: 'eligibility', requires: 'eligibility' },
       eligibility_criteria: { name: 'Eligibility Criteria', desc: 'Full criteria text', category: 'eligibility', requires: 'eligibility' },
-      
-      // Contacts
       contact_name: { name: 'Contact Name', desc: 'Recruitment contact', category: 'contacts', requires: 'contacts' },
       contact_email: { name: 'Contact Email', desc: 'Email address', category: 'contacts', requires: 'contacts' },
       contact_phone: { name: 'Contact Phone', desc: 'Phone number', category: 'contacts', requires: 'contacts' },
-      
-      // Timeline
       start_date: { name: 'Start Date', desc: 'Study start date', category: 'timeline', requires: 'timeline' },
       completion_date: { name: 'Completion Date', desc: 'Expected completion', category: 'timeline', requires: 'timeline' },
       last_update: { name: 'Last Update', desc: 'Last modified date', category: 'timeline', requires: 'timeline' }
     };
 
-    // Drag and drop state
     let draggedElement = null;
     let draggedFromPool = null;
 
-    /**
-     * Create a column item element
-     */
     function createColumnItem(columnKey, showOrder = false, order = null) {
       const def = COLUMN_DEFINITIONS[columnKey];
       if (!def) return null;
-      
       const item = document.createElement('div');
       item.className = 'column-item';
       item.draggable = true;
       item.dataset.columnKey = columnKey;
-      
-      const orderHtml = showOrder && order !== null 
-        ? `<div class="column-item-order">${order}</div>` 
-        : '';
-      
-      item.innerHTML = `
-        ${orderHtml}
-        <div class="column-item-info">
-          <div class="column-item-name">${def.name}</div>
-          <div class="column-item-desc">${def.desc}</div>
-        </div>
-        <div class="column-item-handle">⋮⋮</div>
-      `;
-      
-      // Drag events
+      const orderHtml = showOrder && order !== null ? `<div class="column-item-order">${order}</div>` : '';
+      item.innerHTML = `${orderHtml}<div class="column-item-info"><div class="column-item-name">${def.name}</div><div class="column-item-desc">${def.desc}</div></div><div class="column-item-handle">⋮⋮</div>`;
       item.addEventListener('dragstart', handleDragStart);
       item.addEventListener('dragend', handleDragEnd);
       item.addEventListener('dragover', handleDragOver);
       item.addEventListener('drop', handleDrop);
       item.addEventListener('dragleave', handleDragLeave);
-      
       return item;
     }
 
-    /**
-     * Get available columns based on selected data extractions
-     */
     function getAvailableColumns() {
-      const selectedExtractions = Array.from(
-        document.querySelectorAll('#dataExtractGrid input[type="checkbox"]:checked')
-      ).map(cb => cb.value);
-      
-      const available = [];
-      
-      // Always include basic fields
-      available.push('nct_id', 'title', 'status');
-      
-      // Add fields based on selected extractions
+      const selectedExtractions = Array.from(document.querySelectorAll('#dataExtractGrid input[type="checkbox"]:checked')).map(cb => cb.value);
+      const available = ['nct_id', 'title', 'status'];
       for (const [key, def] of Object.entries(COLUMN_DEFINITIONS)) {
-        if (def.requires && selectedExtractions.includes(def.requires)) {
-          available.push(key);
-        }
+        if (def.requires && selectedExtractions.includes(def.requires)) available.push(key);
       }
-      
-      return [...new Set(available)]; // Remove duplicates
+      return [...new Set(available)];
     }
 
-    /**
-     * Update available columns pool
-     */
     function updateAvailableColumns() {
       const pool = document.getElementById('columnPool');
       const selected = document.getElementById('columnSelected');
-      
       if (!pool || !selected) return;
-      
       const availableColumns = getAvailableColumns();
-      const selectedColumns = Array.from(selected.querySelectorAll('.column-item'))
-        .map(item => item.dataset.columnKey);
-      
-      // Clear pool
+      const selectedColumns = Array.from(selected.querySelectorAll('.column-item')).map(item => item.dataset.columnKey);
       pool.innerHTML = '';
-      
-      // Add columns that are available but not selected
       const poolColumns = availableColumns.filter(col => !selectedColumns.includes(col));
-      
       poolColumns.forEach(columnKey => {
         const item = createColumnItem(columnKey, false);
         if (item) pool.appendChild(item);
       });
-      
-      // Update counts
       updateCounts();
     }
 
-    /**
-     * Update column counts
-     */
     function updateCounts() {
       const poolCount = document.getElementById('columnPool')?.querySelectorAll('.column-item').length || 0;
       const selectedCount = document.getElementById('columnSelected')?.querySelectorAll('.column-item').length || 0;
-      
       const poolCountEl = document.getElementById('poolCount');
       const selectedCountEl = document.getElementById('selectedCount');
-      
       if (poolCountEl) poolCountEl.textContent = `${poolCount} column${poolCount !== 1 ? 's' : ''}`;
       if (selectedCountEl) selectedCountEl.textContent = `${selectedCount} column${selectedCount !== 1 ? 's' : ''}`;
-      
       updateSelectedColumnOrders();
     }
 
-    /**
-     * Update order numbers in selected columns
-     */
     function updateSelectedColumnOrders() {
       const selected = document.getElementById('columnSelected');
       if (!selected) return;
-      
       const items = selected.querySelectorAll('.column-item');
-      
       items.forEach((item, index) => {
         let orderEl = item.querySelector('.column-item-order');
         if (!orderEl) {
@@ -881,13 +853,9 @@
       });
     }
 
-    /**
-     * Drag event handlers
-     */
     function handleDragStart(e) {
       draggedElement = this;
       draggedFromPool = this.parentElement.id === 'columnPool';
-      
       this.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/html', this.innerHTML);
@@ -895,87 +863,46 @@
 
     function handleDragEnd(e) {
       this.classList.remove('dragging');
-      
-      // Remove drag-over class from all items
-      document.querySelectorAll('.column-item').forEach(item => {
-        item.classList.remove('drag-over');
-      });
+      document.querySelectorAll('.column-item').forEach(item => item.classList.remove('drag-over'));
     }
 
     function handleDragOver(e) {
-      if (e.preventDefault) {
-        e.preventDefault();
-      }
-      
+      if (e.preventDefault) e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
-      
       const target = e.target.closest('.column-item');
-      if (target && target !== draggedElement) {
-        target.classList.add('drag-over');
-      }
-      
+      if (target && target !== draggedElement) target.classList.add('drag-over');
       return false;
     }
 
     function handleDragLeave(e) {
       const target = e.target.closest('.column-item');
-      if (target) {
-        target.classList.remove('drag-over');
-      }
+      if (target) target.classList.remove('drag-over');
     }
 
     function handleDrop(e) {
-      if (e.stopPropagation) {
-        e.stopPropagation();
-      }
-      
+      if (e.stopPropagation) e.stopPropagation();
       e.target.classList.remove('drag-over');
-      
       const dropTarget = e.target.closest('.column-item');
       const dropContainer = e.target.closest('.column-list');
-      
       if (!draggedElement) return false;
-      
-      // Dropping into selected column list
       if (dropContainer && dropContainer.id === 'columnSelected') {
         if (dropTarget && dropTarget !== draggedElement) {
-          // Insert before or after based on position
           const rect = dropTarget.getBoundingClientRect();
           const midpoint = rect.top + rect.height / 2;
-          
-          if (e.clientY < midpoint) {
-            dropContainer.insertBefore(draggedElement, dropTarget);
-          } else {
-            dropContainer.insertBefore(draggedElement, dropTarget.nextSibling);
-          }
-        } else if (!dropTarget) {
-          // Dropped in empty space - append to end
-          dropContainer.appendChild(draggedElement);
-        }
-        
-        // If came from pool, remove from pool, otherwise just reorder
-        if (draggedFromPool) {
-          // Already moved, just update pool
-          updateAvailableColumns();
-        }
-      }
-      // Dropping back into pool
-      else if (dropContainer && dropContainer.id === 'columnPool') {
-        // Remove from selected and update pool
+          if (e.clientY < midpoint) dropContainer.insertBefore(draggedElement, dropTarget);
+          else dropContainer.insertBefore(draggedElement, dropTarget.nextSibling);
+        } else if (!dropTarget) dropContainer.appendChild(draggedElement);
+        if (draggedFromPool) updateAvailableColumns();
+      } else if (dropContainer && dropContainer.id === 'columnPool') {
         if (draggedElement.parentElement.id === 'columnSelected') {
           draggedElement.remove();
           updateAvailableColumns();
         }
       }
-      
       updateCounts();
-      
       return false;
     }
 
-    /**
-     * Button actions
-     */
     function clearAllColumns() {
       const selected = document.getElementById('columnSelected');
       if (selected) {
@@ -987,72 +914,46 @@
 
     function selectDefaultColumns() {
       clearAllColumns();
-      
-      const defaultColumns = [
-        'nct_id',
-        'title', 
-        'status',
-        'lead_sponsor',
-        'phase',
-        'conditions'
-      ];
-      
+      const defaultColumns = ['nct_id', 'title', 'status', 'lead_sponsor', 'phase', 'conditions'];
       const selected = document.getElementById('columnSelected');
       if (!selected) return;
-      
       defaultColumns.forEach(columnKey => {
         if (COLUMN_DEFINITIONS[columnKey]) {
           const item = createColumnItem(columnKey, true);
           if (item) selected.appendChild(item);
         }
       });
-      
       updateAvailableColumns();
       updateCounts();
     }
 
     function selectAllColumns() {
       clearAllColumns();
-      
       const availableColumns = getAvailableColumns();
       const selected = document.getElementById('columnSelected');
       if (!selected) return;
-      
       availableColumns.forEach(columnKey => {
         const item = createColumnItem(columnKey, true);
         if (item) selected.appendChild(item);
       });
-      
       updateAvailableColumns();
       updateCounts();
     }
 
-    /**
-     * Get selected columns in order
-     */
     function getSelectedColumns() {
       const selected = document.getElementById('columnSelected');
       if (!selected) return [];
-      
-      return Array.from(selected.querySelectorAll('.column-item'))
-        .map(item => item.dataset.columnKey);
+      return Array.from(selected.querySelectorAll('.column-item')).map(item => item.dataset.columnKey);
     }
 
-    // Setup drag and drop on container elements
     function setupDragDropContainers() {
       const selectedContainer = document.getElementById('columnSelected');
       const poolContainer = document.getElementById('columnPool');
-      
       if (selectedContainer) {
-        selectedContainer.addEventListener('dragover', (e) => {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = 'move';
-        });
-
+        selectedContainer.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
         selectedContainer.addEventListener('drop', (e) => {
           e.preventDefault();
           e.stopPropagation();
-          
           if (draggedElement && !selectedContainer.contains(draggedElement)) {
             selectedContainer.appendChild(draggedElement);
             updateAvailableColumns();
@@ -1060,17 +961,11 @@
           }
         });
       }
-      
       if (poolContainer) {
-        poolContainer.addEventListener('dragover', (e) => {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = 'move';
-        });
-
+        poolContainer.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
         poolContainer.addEventListener('drop', (e) => {
           e.preventDefault();
           e.stopPropagation();
-          
           if (draggedElement && draggedElement.parentElement.id === 'columnSelected') {
             draggedElement.remove();
             updateAvailableColumns();
@@ -1080,31 +975,22 @@
       }
     }
 
-    // Main application code
     let currentResults = null;
 
     function toggleSection(sectionId) {
       const content = document.getElementById(sectionId);
       const toggle = document.getElementById(sectionId.replace('Section', 'Toggle'));
-      
       content.classList.toggle('open');
       toggle.classList.toggle('open');
     }
 
-    // Data extraction card selection
     document.getElementById('dataExtractGrid').addEventListener('click', (e) => {
       const card = e.target.closest('.org-type-card');
       if (!card) return;
-      
       const checkbox = card.querySelector('input[type="checkbox"]');
-      if (e.target !== checkbox) {
-        checkbox.checked = !checkbox.checked;
-      }
-      
+      if (e.target !== checkbox) checkbox.checked = !checkbox.checked;
       card.classList.toggle('selected', checkbox.checked);
       updateDataExtractSelectAll();
-      
-      // Update available columns when data extraction changes
       updateAvailableColumns();
     });
 
@@ -1112,47 +998,25 @@
       const allBoxes = Array.from(document.querySelectorAll('#dataExtractGrid input[type="checkbox"]'));
       const selectAll = document.getElementById('dataExtractSelectAll');
       const checkedCount = allBoxes.filter(b => b.checked).length;
-      
-      if (checkedCount === 0) {
-        selectAll.checked = false;
-        selectAll.indeterminate = false;
-      } else if (checkedCount === allBoxes.length) {
-        selectAll.checked = true;
-        selectAll.indeterminate = false;
-      } else {
-        selectAll.checked = false;
-        selectAll.indeterminate = true;
-      }
+      if (checkedCount === 0) { selectAll.checked = false; selectAll.indeterminate = false; }
+      else if (checkedCount === allBoxes.length) { selectAll.checked = true; selectAll.indeterminate = false; }
+      else { selectAll.checked = false; selectAll.indeterminate = true; }
     }
 
     document.getElementById('dataExtractSelectAll').addEventListener('change', (e) => {
       const allBoxes = document.querySelectorAll('#dataExtractGrid input[type="checkbox"]');
       const allCards = document.querySelectorAll('#dataExtractGrid .org-type-card');
-      
-      allBoxes.forEach(box => {
-        box.checked = e.target.checked;
-      });
-      
-      allCards.forEach(card => {
-        card.classList.toggle('selected', e.target.checked);
-      });
-      
+      allBoxes.forEach(box => box.checked = e.target.checked);
+      allCards.forEach(card => card.classList.toggle('selected', e.target.checked));
       e.target.indeterminate = false;
-      
-      // Update available columns
       updateAvailableColumns();
     });
 
-    // Organization type card selection
     document.getElementById('orgTypesGrid').addEventListener('click', (e) => {
       const card = e.target.closest('.org-type-card');
       if (!card) return;
-      
       const checkbox = card.querySelector('input[type="checkbox"]');
-      if (e.target !== checkbox) {
-        checkbox.checked = !checkbox.checked;
-      }
-      
+      if (e.target !== checkbox) checkbox.checked = !checkbox.checked;
       card.classList.toggle('selected', checkbox.checked);
       updateOrgTypesSelectAll();
     });
@@ -1161,31 +1025,16 @@
       const allBoxes = Array.from(document.querySelectorAll('#orgTypesGrid input[type="checkbox"]'));
       const selectAll = document.getElementById('orgTypesSelectAll');
       const checkedCount = allBoxes.filter(b => b.checked).length;
-      
-      if (checkedCount === 0) {
-        selectAll.checked = false;
-        selectAll.indeterminate = false;
-      } else if (checkedCount === allBoxes.length) {
-        selectAll.checked = true;
-        selectAll.indeterminate = false;
-      } else {
-        selectAll.checked = false;
-        selectAll.indeterminate = true;
-      }
+      if (checkedCount === 0) { selectAll.checked = false; selectAll.indeterminate = false; }
+      else if (checkedCount === allBoxes.length) { selectAll.checked = true; selectAll.indeterminate = false; }
+      else { selectAll.checked = false; selectAll.indeterminate = true; }
     }
 
     document.getElementById('orgTypesSelectAll').addEventListener('change', (e) => {
       const allBoxes = document.querySelectorAll('#orgTypesGrid input[type="checkbox"]');
       const allCards = document.querySelectorAll('#orgTypesGrid .org-type-card');
-      
-      allBoxes.forEach(box => {
-        box.checked = e.target.checked;
-      });
-      
-      allCards.forEach(card => {
-        card.classList.toggle('selected', e.target.checked);
-      });
-      
+      allBoxes.forEach(box => box.checked = e.target.checked);
+      allCards.forEach(card => card.classList.toggle('selected', e.target.checked));
       e.target.indeterminate = false;
     });
 
@@ -1199,13 +1048,8 @@
     function setLoading(isLoading) {
       const loadingDiv = document.getElementById('loading');
       const btn = document.getElementById('searchBtn');
-      if (isLoading) {
-        loadingDiv.classList.add('active');
-        btn.disabled = true;
-      } else {
-        loadingDiv.classList.remove('active');
-        btn.disabled = false;
-      }
+      if (isLoading) { loadingDiv.classList.add('active'); btn.disabled = true; }
+      else { loadingDiv.classList.remove('active'); btn.disabled = false; }
     }
 
     function getCheckedValues(groupId) {
@@ -1225,28 +1069,16 @@
 
     async function searchTrials() {
       const keywords = document.getElementById('keywords').value.trim();
-      if (!keywords) {
-        showError('Please enter at least one keyword.');
-        return;
-      }
+      if (!keywords) { showError('Please enter at least one keyword.'); return; }
 
       const selectedTypes = getSelectedOrgTypes();
-      if (selectedTypes.length === 0) {
-        showError('Please select at least one organization type.');
-        return;
-      }
+      if (selectedTypes.length === 0) { showError('Please select at least one organization type.'); return; }
 
       const selectedExtractions = getSelectedDataExtractions();
-      if (selectedExtractions.length === 0) {
-        showError('Please select at least one data field to extract.');
-        return;
-      }
+      if (selectedExtractions.length === 0) { showError('Please select at least one data field to extract.'); return; }
 
       const selectedColumns = getSelectedColumns();
-      if (selectedColumns.length === 0) {
-        showError('Please add at least one column to the Excel export.');
-        return;
-      }
+      if (selectedColumns.length === 0) { showError('Please add at least one column to the Excel export.'); return; }
 
       document.getElementById('results').classList.remove('active');
       document.getElementById('error').classList.remove('active');
@@ -1268,14 +1100,9 @@
         });
 
         const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || 'Search failed');
-        }
-
+        if (!response.ok) throw new Error(data.error || 'Search failed');
         currentResults = data;
         displayResults(data);
-
       } catch (error) {
         showError(error.message);
         console.error(error);
@@ -1290,22 +1117,10 @@
       const companiesList = document.getElementById('companiesList');
 
       statsDiv.innerHTML = `
-        <div class="stat-box">
-          <div class="stat-number">${data.stats.totalTrials}</div>
-          <div class="stat-label">Trials Found</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-number">${data.stats.extractedRecords}</div>
-          <div class="stat-label">Records Extracted</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-number">${data.stats.uniqueOrganizations || 0}</div>
-          <div class="stat-label">Unique Organizations</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-number">${data.stats.dataFieldsExtracted}</div>
-          <div class="stat-label">Data Fields</div>
-        </div>
+        <div class="stat-box"><div class="stat-number">${data.stats.totalTrials}</div><div class="stat-label">Trials Found</div></div>
+        <div class="stat-box"><div class="stat-number">${data.stats.extractedRecords}</div><div class="stat-label">Records Extracted</div></div>
+        <div class="stat-box"><div class="stat-number">${data.stats.uniqueOrganizations || 0}</div><div class="stat-label">Unique Organizations</div></div>
+        <div class="stat-box"><div class="stat-number">${data.stats.dataFieldsExtracted}</div><div class="stat-label">Data Fields</div></div>
       `;
 
       const preview = data.preview || [];
@@ -1314,25 +1129,15 @@
         const nctId = record.nct_id || '';
         const leadSponsor = record.lead_sponsor || 'N/A';
         const status = record.status || '';
-        
         let additionalInfo = [];
-        if (record.principal_investigators) {
-          additionalInfo.push(`PI: ${record.principal_investigators.split('; ')[0]}`);
-        }
-        if (record.location_count) {
-          additionalInfo.push(`${record.location_count} locations`);
-        }
-        if (record.intervention_count) {
-          additionalInfo.push(`${record.intervention_count} interventions`);
-        }
-        
+        if (record.principal_investigators) additionalInfo.push(`PI: ${record.principal_investigators.split('; ')[0]}`);
+        if (record.location_count) additionalInfo.push(`${record.location_count} locations`);
+        if (record.intervention_count) additionalInfo.push(`${record.intervention_count} interventions`);
         return `
           <div class="company-item">
             <div style="flex: 1;">
               <div class="company-name">${title.substring(0, 80)}${title.length > 80 ? '...' : ''}</div>
-              <div class="company-type">
-                NCT: ${nctId} | Lead: ${leadSponsor} | Status: ${status}
-              </div>
+              <div class="company-type">NCT: ${nctId} | Lead: ${leadSponsor} | Status: ${status}</div>
               ${additionalInfo.length > 0 ? `<div class="company-org-type">${additionalInfo.join(' • ')}</div>` : ''}
             </div>
           </div>
@@ -1340,12 +1145,7 @@
       }).join('');
 
       if (preview.length < data.stats.extractedRecords) {
-        companiesList.innerHTML += `
-          <div style="text-align: center; padding: 20px; color: #6b7280;">
-            Showing first 100 of ${data.stats.extractedRecords} records. 
-            <br>Export Excel to see all data.
-          </div>
-        `;
+        companiesList.innerHTML += `<div style="text-align: center; padding: 20px; color: #6b7280;">Showing first 100 of ${data.stats.extractedRecords} records. <br>Export Excel to see all data.</div>`;
       }
 
       resultsDiv.classList.add('active');
@@ -1358,35 +1158,18 @@
     function setupSelectAll(selectAllId, groupId) {
       const selectAll = document.getElementById(selectAllId);
       const boxes = Array.from(document.querySelectorAll(`#${groupId} input[type="checkbox"]`));
-
-      selectAll.addEventListener('change', () => {
-        boxes.forEach(b => b.checked = selectAll.checked);
-        selectAll.indeterminate = false;
-      });
-
+      selectAll.addEventListener('change', () => { boxes.forEach(b => b.checked = selectAll.checked); selectAll.indeterminate = false; });
       boxes.forEach(b => b.addEventListener('change', () => {
         const checkedCount = boxes.filter(x => x.checked).length;
-        if (checkedCount === 0) {
-          selectAll.checked = false;
-          selectAll.indeterminate = false;
-        } else if (checkedCount === boxes.length) {
-          selectAll.checked = true;
-          selectAll.indeterminate = false;
-        } else {
-          selectAll.checked = false;
-          selectAll.indeterminate = true;
-        }
+        if (checkedCount === 0) { selectAll.checked = false; selectAll.indeterminate = false; }
+        else if (checkedCount === boxes.length) { selectAll.checked = true; selectAll.indeterminate = false; }
+        else { selectAll.checked = false; selectAll.indeterminate = true; }
       }));
     }
 
     setupSelectAll('statusSelectAll', 'status-group');
     setupSelectAll('phaseSelectAll', 'phase-group');
-    
-    // Initialize column builder when page loads
-    document.addEventListener('DOMContentLoaded', () => {
-      setupDragDropContainers();
-      selectDefaultColumns();
-    });
+    document.addEventListener('DOMContentLoaded', () => { setupDragDropContainers(); selectDefaultColumns(); });
   </script>
 </body>
 </html>
