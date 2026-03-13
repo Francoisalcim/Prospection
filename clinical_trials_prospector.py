@@ -237,25 +237,18 @@ class ClinicalTrialsProspector:
         
         return result
     
-    def build_query_term(self, keywords: str, phases: List[str] = None) -> str:
+    def build_query_term(self, keywords: str) -> str:
         """
         Build the query.term parameter for the API
         
         Args:
             keywords: Keyword string (can include AND/OR operators)
-            phases: Optional list of phase filters
             
         Returns:
-            Query string formatted for ClinicalTrials.gov API
+            Formatted query string for API
         """
-        keyword_part = self.parse_keyword_expression(keywords)
-        
-        if not phases:
-            return keyword_part
-        
-        # Add phase filtering if specified
-        phase_part = "AREA[Phase]({})".format(' OR '.join(phases))
-        return "{} AND {}".format(keyword_part, phase_part)
+        # Only process keywords - phases will be handled as filter parameters
+        return self.parse_keyword_expression(keywords)
     
     def fetch_trials(self, 
                      keywords: str,
@@ -267,10 +260,11 @@ class ClinicalTrialsProspector:
         page_size = 100
         page_token = None
         
-        query_term = self.build_query_term(keywords, phases)
+        query_term = self.build_query_term(keywords)
         
         print("🔍 Searching for: {}".format(query_term))
-        print("📊 Filters: Statuses={}, Max Results={}".format(statuses or 'All', max_results))
+        print("📊 Filters: Statuses={}, Phases={}, Max Results={}".format(
+            statuses or 'All', phases or 'All', max_results))
         print("📋 Extracting: {}".format(', '.join(self.extraction_options)))
         
         while len(self.trials_data) < max_results:
@@ -281,8 +275,13 @@ class ClinicalTrialsProspector:
                 'countTotal': 'true'
             }
             
+            # Apply status filter if specified
             if statuses:
                 params['filter.overallStatus'] = ','.join(statuses)
+            
+            # Apply phase filter if specified (as a filter parameter, not in query)
+            if phases:
+                params['filter.phase'] = ','.join(phases)
             
             if page_token:
                 params['pageToken'] = page_token
