@@ -159,83 +159,64 @@ class ClinicalTrialsProspector:
     
     def parse_keyword_expression(self, keyword_string: str) -> str:
         """
-        Parse keyword string with AND/OR operators into API query format
-        
-        Examples:
-            "diabetes AND insulin" -> ("diabetes" AND "insulin")
-            "diabetes OR insulin" -> ("diabetes" OR "insulin")
-            "diabetes AND (insulin OR treatment)" -> ("diabetes" AND ("insulin" OR "treatment"))
-            "diabetes, insulin" -> ("diabetes" OR "insulin")  [comma = OR]
-        
-        Args:
-            keyword_string: User input with keywords and AND/OR operators
-            
-        Returns:
-            Formatted query string for API
+        Robust parser for ClinicalTrials.gov query.term expressions.
+
+        Supported inputs:
+            diabetes
+            diabetes, insulin
+            diabetes AND insulin
+            diabetes OR insulin
+            diabetes AND (insulin OR metformin)
+
+        Design choice:
+        - Do not aggressively quote every term.
+        - Preserve user Boolean logic.
+        - Validate parentheses and operators.
         """
-        # Clean up the input
         keyword_string = keyword_string.strip()
-        
+
         if not keyword_string:
             return ""
-        
-        # Check if user is using AND/OR operators
-        has_and = ' AND ' in keyword_string.upper()
-        has_or = ' OR ' in keyword_string.upper()
-        
-        # If no operators, treat commas as OR
-        if not has_and and not has_or:
-            # Split by comma and treat as OR
-            keywords = [k.strip() for k in keyword_string.split(',') if k.strip()]
-            if len(keywords) == 1:
-                return keywords[0]
-            quoted_keywords = ['"{}"'.format(k) for k in keywords]
-            return "({})".format(' OR '.join(quoted_keywords))
-        
-        # User is using AND/OR operators - parse the expression
-        # Replace operators with standardized versions (case insensitive)
-        expression = keyword_string
-        
-        # Make operators case-insensitive by using regex
-        expression = re.sub(r'\bAND\b', 'AND', expression, flags=re.IGNORECASE)
-        expression = re.sub(r'\bOR\b', 'OR', expression, flags=re.IGNORECASE)
-        
-        # Split by AND and OR while preserving the operators
-        tokens = re.split(r'\s+(AND|OR)\s+', expression)
-        
-        # Quote individual keywords that aren't operators or parentheses
-        processed_tokens = []
-        for token in tokens:
-            token = token.strip()
-            if token in ['AND', 'OR']:
-                processed_tokens.append(token)
-            elif token.startswith('(') and token.endswith(')'):
-                # Handle parentheses - process the content inside
-                inner = token[1:-1].strip()
-                inner_tokens = re.split(r'\s+(AND|OR)\s+', inner)
-                inner_processed = []
-                for inner_token in inner_tokens:
-                    inner_token = inner_token.strip()
-                    if inner_token in ['AND', 'OR']:
-                        inner_processed.append(inner_token)
-                    elif inner_token and not inner_token.startswith('"'):
-                        inner_processed.append('"{}"'.format(inner_token))
-                    else:
-                        inner_processed.append(inner_token)
-                processed_tokens.append('({})'.format(' '.join(inner_processed)))
-            elif token and not token.startswith('"'):
-                # Quote unquoted keywords
-                processed_tokens.append('"{}"'.format(token))
-            else:
-                processed_tokens.append(token)
-        
-        result = ' '.join(processed_tokens)
-        
-        # Wrap in outer parentheses if there are multiple terms
-        if ' AND ' in result or ' OR ' in result:
-            result = '({})'.format(result)
-        
-        return result
+
+        # Normalize spaces
+        keyword_string = re.sub(r"\s+", " ", keyword_string)
+
+        # Case 1: no explicit Boolean operators => comma means OR
+        has_boolean = re.search(r"\bAND\b|\bOR\b", keyword_string, flags=re.IGNORECASE)
+
+        if not has_boolean:
+            terms = [t.strip() for t in keyword_string.split(",") if t.strip()]
+
+            if len(terms) == 1:
+                return terms[0]
+
+            return "(" + " OR ".join(terms) + ")"
+
+        # Case 2: explicit Boolean logic
+        expression = re.sub(r"\bAND\b", "AND", keyword_string, flags=re.IGNORECASE)
+        expression = re.sub(r"\bOR\b", "OR", expression, flags=re.IGNORECASE)
+
+        # Validate parentheses balance
+        balance = 0
+        for char in expression:
+            if char == "(":
+                balance += 1
+            elif char == ")":
+                balance -= 1
+            if balance < 0:
+                raise ValueError("Invalid keyword expression: closing parenthesis before opening parenthesis.")
+
+        if balance != 0:
+            raise ValueError("Invalid keyword expression: unbalanced parentheses.")
+
+        # Basic operator validation
+        if re.search(r"\b(AND|OR)\s*(AND|OR)\b", expression):
+            raise ValueError("Invalid keyword expression: two Boolean operators are next to each other.")
+
+        if re.search(r"^\s*(AND|OR)\b", expression) or re.search(r"\b(AND|OR)\s*$", expression):
+            raise ValueError("Invalid keyword expression: expression cannot start or end with AND/OR.")
+
+        return expression
     
     def build_query_term(self, keywords: str) -> str:
         """
@@ -749,3 +730,23 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+prospector = ClinicalTrialsProspector(
+    include_types=None,   # disable org filtering for the test
+    extraction_options=['sponsors', 'design']
+)
+
+trials = prospector.fetch_trials(
+    keywords="diabetes",
+    statuses=None,
+    phases=None,
+    max_results=10
+)
+
+print("Fetched from API:", len(trials))
+
+data = prospector.extract_data()
+print("After extraction/filtering:", len(data))
+
+for row in data[:3]:
+    print(row["nct_id"], row.get("lead_sponsor"), row.get("lead_sponsor_type"))
