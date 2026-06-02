@@ -351,10 +351,18 @@ class ClinicalTrialsProspector:
                 # Apply organization filtering (if sponsors is selected)
                 if 'sponsors' in self.extraction_options:
                     lead_sponsor = extracted.get('lead_sponsor', '')
-                    if lead_sponsor and self.should_include_organization(lead_sponsor):
+                    collaborators = extracted.get('collaborators', '')
+
+                    organizations = []
+                    if lead_sponsor:
+                        organizations.append(lead_sponsor)
+
+                    if collaborators:
+                        organizations.extend([c.strip() for c in collaborators.split(';') if c.strip()])
+
+                    if any(self.should_include_organization(org) for org in organizations):
                         self.extracted_data.append(extracted)
                 else:
-                    # If not filtering by sponsors, include all
                     self.extracted_data.append(extracted)
                     
             except Exception as e:
