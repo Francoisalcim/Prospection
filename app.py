@@ -46,13 +46,42 @@ def search():
         
         statuses = data.get('statuses', [])
         phases = data.get('phases', [])
+
+        ALL_STATUSES = [
+        'RECRUITING',
+        'ACTIVE_NOT_RECRUITING',
+        'COMPLETED',
+        'ENROLLING_BY_INVITATION',
+        'NOT_YET_RECRUITING',
+        'SUSPENDED',
+        'TERMINATED',
+        'WITHDRAWN'
+        ]
+
+        ALL_PHASES = [
+            'EARLY_PHASE1',
+            'PHASE1',
+            'PHASE2',
+            'PHASE3',
+            'PHASE4'
+        ]
+
+        # If user selected all statuses/phases, do not send them as filters
+        if statuses and set(statuses) == set(ALL_STATUSES):
+            statuses = None
+
+        if phases and set(phases) == set(ALL_PHASES):
+            phases = None
+
         max_results_raw = data.get('maxResults', '500')
         
         # Organization type filtering
         org_types = data.get('organizationTypes', ['company'])
-        
         # Data extraction options
         data_extractions = data.get('dataExtractions', ['sponsors'])
+        
+        print("Organization Types received from frontend:", org_types)
+        print("Data extractions received from frontend:", data_extractions)
         
         # Custom column order
         column_order = data.get('columnOrder', [])
@@ -97,6 +126,26 @@ def search():
         # Prepare summary statistics
         total_trials = len(trials)
         total_extracted = len(extracted_data)
+
+        # Debug information
+        debug_info = {
+            'keywords': keywords_raw,
+            'statuses': statuses,
+            'phases': phases,
+            'maxResults': max_results,
+            'organizationTypes': org_types,
+            'dataExtractions': data_extractions,
+            'totalTrialsFetchedFromAPI': total_trials,
+            'recordsAfterFiltering': total_extracted
+        }
+
+        print("\n" + "="*50)
+        print("DEBUG SEARCH")
+        print("="*50)
+
+        for key, value in debug_info.items():
+            print(f"{key}: {value}")
+        print("="*50 + "\n")
         
         # Calculate unique organizations (if sponsors is selected)
         unique_orgs = 0
@@ -125,7 +174,8 @@ def search():
                 'dataFieldsExtracted': len(data_extractions)
             },
             'preview': preview_data,
-            'dataFields': data_extractions
+            'dataFields': data_extractions,
+            'debug': debug_info
         }
         
         print(f"✅ Returning {total_extracted} extracted records")

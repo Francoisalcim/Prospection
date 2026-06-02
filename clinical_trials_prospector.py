@@ -739,22 +739,3 @@ def main():
 if __name__ == "__main__":
     main()
 
-prospector = ClinicalTrialsProspector(
-    include_types=None,   # disable org filtering for the test
-    extraction_options=['sponsors', 'design']
-)
-
-trials = prospector.fetch_trials(
-    keywords="diabetes",
-    statuses=None,
-    phases=None,
-    max_results=10
-)
-
-print("Fetched from API:", len(trials))
-
-data = prospector.extract_data()
-print("After extraction/filtering:", len(data))
-
-for row in data[:3]:
-    print(row["nct_id"], row.get("lead_sponsor"), row.get("lead_sponsor_type"))
