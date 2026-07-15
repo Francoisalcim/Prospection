@@ -8,7 +8,7 @@ import requests
 import json
 import csv
 import time
-from typing import List, Dict, Set, Optional, Tuple
+from typing import List, Dict, Set, Optional, Tuple, Any
 from collections import defaultdict
 from datetime import datetime
 import re
@@ -18,6 +18,16 @@ class ClinicalTrialsProspector:
     """Handles fetching and processing clinical trials data with flexible extraction"""
     
     BASE_URL = "https://clinicaltrials.gov/api/v2/studies"
+
+    VALID_STATUSES = {
+        "RECRUITING", "ACTIVE_NOT_RECRUITING", "NOT_YET_RECRUITING",
+        "COMPLETED", "TERMINATED", "WITHDRAWN", "SUSPENDED",
+        "ENROLLING_BY_INVITATION", "UNKNOWN"
+    }
+
+    VALID_PHASES = {
+        "EARLY_PHASE1", "PHASE1", "PHASE2", "PHASE3", "PHASE4", "NA"
+    }
     
     # Organization type categories
     ORGANIZATION_TYPES = {
@@ -128,6 +138,18 @@ class ClinicalTrialsProspector:
         self.include_types = include_types
         self.exclude_types = exclude_types or []
         self.extraction_options = extraction_options or ['sponsors']
+        self.last_query_term = ""
+        self.last_total_count = None
+        self.last_request_debug = {"requests": [], "errors": []}
+        self.extraction_diagnostics = {
+            "input_trials": 0,
+            "included_records": 0,
+            "excluded_by_org_filter": 0,
+            "processing_errors": 0,
+            "organization_type_counts": {},
+            "selected_organization_types": self.include_types,
+            "extraction_options": self.extraction_options
+        }
         
     def get_organization_type(self, name: str) -> str:
         """Determine the organization type based on its name"""
@@ -157,67 +179,167 @@ class ClinicalTrialsProspector:
         
         return org_type not in self.exclude_types
     
+    def _split_top_level_commas(self, text: str) -> List[str]:
+        """
+        Split on commas, but not commas inside parentheses.
+
+        Example:
+        'Acne, Chronic wounds (diabetic, venous ulcers), Xerosis'
+        ->
+        ['Acne', 'Chronic wounds (diabetic, venous ulcers)', 'Xerosis']
+        """
+        parts = []
+        current = []
+        depth = 0
+
+        for char in text:
+            if char == "(":
+                depth += 1
+                current.append(char)
+            elif char == ")":
+                depth = max(0, depth - 1)
+                current.append(char)
+            elif char == "," and depth == 0:
+                part = "".join(current).strip()
+                if part:
+                    parts.append(part)
+                current = []
+            else:
+                current.append(char)
+
+        part = "".join(current).strip()
+        if part:
+            parts.append(part)
+
+        return parts
+
+
     def parse_keyword_expression(self, keyword_string: str) -> str:
         """
-        Robust parser for ClinicalTrials.gov query.term expressions.
+        Parse user keyword input safely.
 
-        Supported inputs:
-            diabetes
-            diabetes, insulin
-            diabetes AND insulin
-            diabetes OR insulin
-            diabetes AND (insulin OR metformin)
+        Supported:
+        - acne
+        - acne, alopecia, xerosis
+        - chronic wounds (diabetic, venous ulcers), acne
+        - diabetes AND insulin
+        - cancer AND (immunotherapy OR chemotherapy)
 
-        Design choice:
-        - Do not aggressively quote every term.
-        - Preserve user Boolean logic.
-        - Validate parentheses and operators.
+        Important:
+        Parentheses inside disease names are allowed in comma-separated searches.
+        Parentheses are treated as Boolean grouping only when AND/OR is used.
         """
         keyword_string = keyword_string.strip()
 
         if not keyword_string:
             return ""
 
-        # Normalize spaces
         keyword_string = re.sub(r"\s+", " ", keyword_string)
 
-        # Case 1: no explicit Boolean operators => comma means OR
         has_boolean = re.search(r"\bAND\b|\bOR\b", keyword_string, flags=re.IGNORECASE)
 
+        # Case 1 — comma-separated disease/condition list
         if not has_boolean:
-            terms = [t.strip() for t in keyword_string.split(",") if t.strip()]
+            terms = self._split_top_level_commas(keyword_string)
 
             if len(terms) == 1:
                 return terms[0]
 
-            return "(" + " OR ".join(terms) + ")"
+            # Quote each term so multi-word medical conditions stay together
+            quoted_terms = []
+            for term in terms:
+                clean_term = term.strip()
+                if clean_term.startswith('"') and clean_term.endswith('"'):
+                    quoted_terms.append(clean_term)
+                else:
+                    quoted_terms.append(f'"{clean_term}"')
 
-        # Case 2: explicit Boolean logic
+            return "(" + " OR ".join(quoted_terms) + ")"
+
+        # Case 2 — explicit Boolean search
         expression = re.sub(r"\bAND\b", "AND", keyword_string, flags=re.IGNORECASE)
         expression = re.sub(r"\bOR\b", "OR", expression, flags=re.IGNORECASE)
 
-        # Validate parentheses balance
+        # Validate parentheses only for Boolean expressions
         balance = 0
         for char in expression:
             if char == "(":
                 balance += 1
             elif char == ")":
                 balance -= 1
+
             if balance < 0:
-                raise ValueError("Invalid keyword expression: closing parenthesis before opening parenthesis.")
+                raise ValueError(
+                    "Invalid keyword expression: closing parenthesis before opening parenthesis."
+                )
 
         if balance != 0:
             raise ValueError("Invalid keyword expression: unbalanced parentheses.")
 
-        # Basic operator validation
-        if re.search(r"\b(AND|OR)\s*(AND|OR)\b", expression):
-            raise ValueError("Invalid keyword expression: two Boolean operators are next to each other.")
+        if re.search(r"\b(AND|OR)\s+(AND|OR)\b", expression):
+            raise ValueError(
+                "Invalid keyword expression: two Boolean operators are next to each other."
+            )
 
         if re.search(r"^\s*(AND|OR)\b", expression) or re.search(r"\b(AND|OR)\s*$", expression):
-            raise ValueError("Invalid keyword expression: expression cannot start or end with AND/OR.")
+            raise ValueError(
+                "Invalid keyword expression: expression cannot start or end with AND/OR."
+            )
 
         return expression
-    
+
+    def _validate_keyword_expression(self, expression: str) -> None:
+        """Validate Boolean expression shape before sending it to ClinicalTrials.gov."""
+        balance = 0
+        previous_token = None
+        tokens = re.findall(r"\(|\)|\bAND\b|\bOR\b|[^\s()]+", expression)
+
+        if not tokens:
+            raise ValueError("Invalid keyword expression: empty expression.")
+
+        for token in tokens:
+            upper = token.upper()
+
+            if token == "(":
+                balance += 1
+                if previous_token and previous_token not in {"AND", "OR", "("}:
+                    raise ValueError("Invalid keyword expression: missing AND/OR before '('.")
+
+            elif token == ")":
+                balance -= 1
+                if balance < 0:
+                    raise ValueError("Invalid keyword expression: closing parenthesis before opening parenthesis.")
+                if previous_token in {"AND", "OR", "("}:
+                    raise ValueError("Invalid keyword expression: empty group or operator before ')'.")
+
+            elif upper in {"AND", "OR"}:
+                if previous_token is None or previous_token in {"AND", "OR", "("}:
+                    raise ValueError("Invalid keyword expression: AND/OR must be placed between two terms.")
+
+            else:
+                if previous_token == ")":
+                    raise ValueError("Invalid keyword expression: missing AND/OR after ')'.")
+
+            previous_token = upper if upper in {"AND", "OR"} else token
+
+        if balance != 0:
+            raise ValueError("Invalid keyword expression: unbalanced parentheses.")
+
+        if previous_token in {"AND", "OR", "("}:
+            raise ValueError("Invalid keyword expression: expression cannot end with AND/OR or '('.")
+
+    def validate_filters(self, statuses: List[str] = None, phases: List[str] = None) -> None:
+        """Validate API filter values before sending the request."""
+        if statuses:
+            invalid = sorted(set(statuses) - self.VALID_STATUSES)
+            if invalid:
+                raise ValueError("Invalid status value(s): " + ", ".join(invalid))
+
+        if phases:
+            invalid = sorted(set(phases) - self.VALID_PHASES)
+            if invalid:
+                raise ValueError("Invalid phase value(s): " + ", ".join(invalid))
+
     def build_query_term(self, keywords: str) -> str:
         """
         Build the query.term parameter for the API
@@ -235,23 +357,28 @@ class ClinicalTrialsProspector:
                      keywords: str,
                      statuses: List[str] = None,
                      phases: List[str] = None,
-                     max_results: int = 500) -> List[Dict]:
+                     max_results: Optional[int] = 500,
+                     progress_callback=None) -> List[Dict]:
         """Fetch clinical trials from ClinicalTrials.gov API with pagination"""
         self.trials_data = []
+        self.last_request_debug = {"requests": [], "errors": []}
+        self.last_total_count = None
+        self.validate_filters(statuses=statuses, phases=phases)
         page_size = 100
         page_token = None
         
         query_term = self.build_query_term(keywords)
+        self.last_query_term = query_term
         
         print("🔍 Searching for: {}".format(query_term))
         print("📊 Filters: Statuses={}, Phases={}, Max Results={}".format(
-            statuses or 'All', phases or 'All', max_results))
+            statuses or 'All', phases or 'All', max_results if max_results is not None else 'ALL'))
         print("📋 Extracting: {}".format(', '.join(self.extraction_options)))
         
-        while len(self.trials_data) < max_results:
+        while max_results is None or len(self.trials_data) < max_results:
             params = {
                 'query.term': query_term,
-                'pageSize': min(page_size, max_results - len(self.trials_data)),
+                'pageSize': page_size if max_results is None else min(page_size, max_results - len(self.trials_data)),
                 'format': 'json',
                 'countTotal': 'true'
             }
@@ -259,26 +386,54 @@ class ClinicalTrialsProspector:
             # Apply status filter if specified
             if statuses:
                 params['filter.overallStatus'] = ','.join(statuses)
-            
-            # Apply phase filter if specified (as a filter parameter, not in query)
-            if phases:
-                params['filter.phase'] = ','.join(phases)
-            
+                       
             if page_token:
                 params['pageToken'] = page_token
             
-            print("📥 Fetching... ({}/{})".format(len(self.trials_data), max_results))
+            print("📥 Fetching... ({}/{})".format(len(self.trials_data), max_results if max_results is not None else 'ALL'))
             
             try:
                 response = requests.get(self.BASE_URL, params=params, timeout=30)
+                request_debug = {
+                    'url': response.url,
+                    'status_code': response.status_code,
+                    'params': params.copy()
+                }
+                if response.status_code != 200:
+                    request_debug['response_preview'] = response.text[:1000]
+                    self.last_request_debug['errors'].append(request_debug)
+                self.last_request_debug['requests'].append(request_debug)
                 response.raise_for_status()
                 data = response.json()
+                self.last_total_count = data.get('totalCount', self.last_total_count)
                 
                 studies = data.get('studies', [])
+                if phases:
+                    requested_phases = set(phases)
+
+                    studies = [
+                        study for study in studies
+                        if requested_phases.intersection(
+                            set(
+                                study.get("protocolSection", {})
+                                .get("designModule", {})
+                                .get("phases", [])
+                            )
+                        )
+                    ]
+
                 if not studies:
                     break
                 
                 self.trials_data.extend(studies)
+                
+                if progress_callback:
+                    progress_callback({
+                        'stage': 'fetching',
+                        'fetched': len(self.trials_data),
+                        'apiTotalCount': self.last_total_count,
+                        'latestPageSize': len(studies)
+                    })
                 
                 page_token = data.get('nextPageToken')
                 if not page_token:
@@ -288,7 +443,7 @@ class ClinicalTrialsProspector:
                 
             except requests.exceptions.RequestException as e:
                 print("❌ Error fetching data: {}".format(e))
-                break
+                raise
         
         print("✅ Fetched {} trials".format(len(self.trials_data)))
         return self.trials_data
@@ -304,6 +459,15 @@ class ClinicalTrialsProspector:
             trials = self.trials_data
         
         self.extracted_data = []
+        self.extraction_diagnostics = {
+            "input_trials": len(trials),
+            "included_records": 0,
+            "excluded_by_org_filter": 0,
+            "processing_errors": 0,
+            "organization_type_counts": {},
+            "selected_organization_types": self.include_types,
+            "extraction_options": self.extraction_options
+        }
         
         for study in trials:
             try:
@@ -351,24 +515,24 @@ class ClinicalTrialsProspector:
                 # Apply organization filtering (if sponsors is selected)
                 if 'sponsors' in self.extraction_options:
                     lead_sponsor = extracted.get('lead_sponsor', '')
-                    collaborators = extracted.get('collaborators', '')
+                    lead_sponsor_type = extracted.get('lead_sponsor_type') or self.get_organization_type(lead_sponsor)
+                    counts = self.extraction_diagnostics["organization_type_counts"]
+                    counts[lead_sponsor_type] = counts.get(lead_sponsor_type, 0) + 1
 
-                    organizations = []
-                    if lead_sponsor:
-                        organizations.append(lead_sponsor)
-
-                    if collaborators:
-                        organizations.extend([c.strip() for c in collaborators.split(';') if c.strip()])
-
-                    if any(self.should_include_organization(org) for org in organizations):
+                    if lead_sponsor and self.should_include_organization(lead_sponsor):
                         self.extracted_data.append(extracted)
+                    else:
+                        self.extraction_diagnostics["excluded_by_org_filter"] += 1
                 else:
+                    # If sponsors are not extracted, org filtering cannot be applied safely.
                     self.extracted_data.append(extracted)
                     
             except Exception as e:
+                self.extraction_diagnostics["processing_errors"] += 1
                 print("⚠️  Warning: Error processing study {}: {}".format(nct_id, e))
                 continue
         
+        self.extraction_diagnostics["included_records"] = len(self.extracted_data)
         print(f"\n✅ Extracted data from {len(self.extracted_data)} trials")
         return self.extracted_data
     
@@ -738,4 +902,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
