@@ -1099,8 +1099,26 @@
           })
         });
 
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Search failed');
+        const rawText = await response.text();
+
+        let data = null;
+
+        try {
+          data = rawText ? JSON.parse(rawText) : {};
+        } catch (parseError) {
+          console.error("Non-JSON server response:", rawText);
+
+          throw new Error(
+            "The server did not return valid JSON. " +
+            "This usually means the backend timed out, crashed, or returned an HTML error page. " +
+            "Check the Flask/Render logs for the exact issue."
+          );
+        }
+
+        if (!response.ok) {
+          throw new Error(data.error || data.details || 'Search failed');
+        }
+
         currentResults = data;
         displayResults(data);
       } catch (error) {
