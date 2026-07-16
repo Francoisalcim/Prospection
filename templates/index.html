@@ -321,6 +321,14 @@ async function searchTrials(){
   document.getElementById('error').classList.remove('active');
   document.getElementById('success').classList.remove('active');
   document.getElementById('progressBox').classList.remove('active');
+  document.getElementById('exportButtons').style.display = 'none';
+
+  currentJobId = null;
+  currentResults = null;
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
 
   if(payload.maxResults === 'ALL') return startBackgroundSearch(payload);
 
@@ -339,7 +347,7 @@ async function startBackgroundSearch(payload){
   try{
     const response = await fetch('/api/search/start',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
     const data = await parseResponse(response);
-    currentJobId = data.jobId;
+    currentJobId = data.jobId || data.job_id;
     showSuccess('Background search started. You can follow progress below.');
     document.getElementById('progressBox').classList.add('active');
     pollJobStatus();
@@ -355,10 +363,12 @@ async function pollJobStatus(){
     const response = await fetch(`/api/search/status/${currentJobId}`);
     const data = await parseResponse(response);
     renderProgress(data);
+    if(data.jobId || data.job_id) currentJobId = data.jobId || data.job_id;
     if(data.status === 'completed'){
       clearInterval(pollTimer); pollTimer=null;
-      currentResults = data.summary;
-      displayResults(data.summary);
+      const summary = data.summary || data;
+      currentResults = summary;
+      displayResults(summary);
       showSuccess('Background search completed. Excel export is ready.');
     }else if(data.status === 'failed'){
       clearInterval(pollTimer); pollTimer=null;
@@ -403,10 +413,14 @@ function displayResults(data){
       <div class="preview-title">${escapeHtml((r.title || 'Untitled').slice(0,120))}${(r.title||'').length>120?'...':''}</div>
       <div class="preview-meta">NCT: ${escapeHtml(r.nct_id || '')} | Lead: ${escapeHtml(r.lead_sponsor || 'N/A')} | Status: ${escapeHtml(r.status || '')} | Phase: ${escapeHtml(r.phase || '')}</div>
     </div>`).join('') : '<div class="hint">No preview records.</div>';
+  document.getElementById('exportButtons').style.display = 'grid';
   document.getElementById('results').classList.add('active');
 }
 
-function exportToExcel(){ if(currentJobId) window.open(`/api/export/xlsx/${currentJobId}`,'_blank'); else window.open('/api/export/xlsx','_blank'); }
+function exportToExcel(){
+  if(currentJobId) window.open(`/api/export/xlsx/${currentJobId}`,'_blank');
+  else window.open('/api/export/xlsx','_blank');
+}
 function escapeHtml(s){ return String(s).replace(/[&<>'"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 
 function createColumnItem(key){ const d=COLUMN_DEFINITIONS[key]; if(!d) return null; const el=document.createElement('div'); el.className='column-item'; el.draggable=true; el.dataset.columnKey=key; el.innerHTML=`<div class="column-item-info"><div class="column-item-name">${d.name}</div><div class="column-item-desc">${d.desc}</div></div><div>⋮⋮</div>`; el.addEventListener('dragstart',()=>{draggedElement=el; el.classList.add('dragging');}); el.addEventListener('dragend',()=>{el.classList.remove('dragging'); updateAvailableColumns();}); return el; }
